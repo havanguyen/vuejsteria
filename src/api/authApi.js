@@ -17,3 +17,12 @@ export const registerApi = async (userData) => {
        throw error.response?.data || error;
    }
 };
+
+export const logoutApi = async (token) => {
+  try {
+    await axiosInstance.post('/identity/auth/logout', { token });
+  } catch (error) {
+    console.error('Logout API failed:', error);
+    throw error.response?.data || error;
+  }
+};

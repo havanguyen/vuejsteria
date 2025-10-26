@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import { useRouter, useRoute, RouterLink } from 'vue-router';
 import { useForm, useField } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -13,6 +13,7 @@ const route = useRoute();
 
 const serverError = ref(null);
 const isSubmitting = ref(false);
+const showPassword = ref(false);
 
 const { handleSubmit, errors } = useForm({
   validationSchema: toTypedSchema(loginSchema),
@@ -30,14 +31,17 @@ const onSubmit = handleSubmit(async (values) => {
   isSubmitting.value = true;
   try {
     const authData = await loginApi(values);
-    authStore.login(authData);
-    
+    await authStore.login(authData);
+
+    await nextTick();
+
     const redirectPath = route.query.redirect || '/';
+    console.log(`Login successful, attempting to redirect to: ${redirectPath}`);
     router.push(redirectPath);
 
   } catch (err) {
     console.error('Login failed:', err);
-    serverError.value = err?.title || err?.message || 'Login failed. Please check your credentials.';
+    serverError.value = err?.title || err?.message || 'Login failed. Please check your credentials or user info fetching failed.';
   } finally {
     isSubmitting.value = false;
   }
@@ -48,9 +52,9 @@ const onSubmit = handleSubmit(async (values) => {
   <v-container class="fill-height">
     <v-row align="center" justify="center">
       <v-col cols="12" sm="8" md="5" lg="4">
-        <v-card class="pa-4 pa-md-8">
-          <v-card-title class="text-center text-h5 font-weight-medium mb-4">
-            <v-avatar color="secondary" class="mb-4">
+        <v-card class="pa-4 pa-md-8 elevation-2">
+          <v-card-title class="text-center text-h5 font-weight-bold mb-6">
+            <v-avatar color="secondary" size="large" class="mb-4">
               <v-icon icon="mdi-lock" />
             </v-avatar>
             <div>Sign in to Bookteria</div>
@@ -74,16 +78,22 @@ const onSubmit = handleSubmit(async (values) => {
                 prepend-inner-icon="mdi-account"
                 :error-messages="errors.username"
                 :disabled="isSubmitting"
-                class="mb-2"
+                class="mb-3"
+                variant="outlined"
+                density="comfortable"
               />
               <v-text-field
                 v-model="password"
                 label="Password"
-                type="password"
-                prepend-inner-icon="mdi-lock"
+                :type="showPassword ? 'text' : 'password'"
+                prepend-inner-icon="mdi-lock-outline"
+                :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                @click:append-inner="showPassword = !showPassword"
                 :error-messages="errors.password"
                 :disabled="isSubmitting"
-                class="mb-2"
+                class="mb-3"
+                 variant="outlined"
+                 density="comfortable"
               />
               <v-btn
                 type="submit"
@@ -92,19 +102,21 @@ const onSubmit = handleSubmit(async (values) => {
                 size="large"
                 :loading="isSubmitting"
                 :disabled="isSubmitting"
-                class="mt-4"
+                class="mt-6"
               >
                 Sign In
               </v-btn>
             </v-form>
           </v-card-text>
-          
-          <v-card-actions class="d-flex justify-space-between px-4 pb-4">
-             <router-link to="#" class="text-body-2 text-decoration-none">
-                Forgot password?
-             </router-link>
-             <router-link :to="{ name: 'Register' }" class="text-body-2 text-decoration-none">
+
+          <v-divider class="my-3"></v-divider>
+
+          <v-card-actions class="d-flex flex-column align-center px-4 pb-4">
+             <router-link :to="{ name: 'Register' }" class="text-body-2 text-decoration-none mb-2">
                 Don't have an account? Sign Up
+             </router-link>
+             <router-link to="#" class="text-caption text-decoration-none text-grey">
+                Forgot password?
              </router-link>
           </v-card-actions>
         </v-card>

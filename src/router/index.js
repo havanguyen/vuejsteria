@@ -57,14 +57,19 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
-  const authStore = useAuthStore();
-  const isAuthenticated = authStore.isAuthenticated;
+let isHydrated = false;
 
-  if (!authStore._hasHydrated) {
-    next(false);
-    return;
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore();
+
+  if (!isHydrated) {
+    console.log('💧 Router waiting for store hydration...');
+    await authStore.hydrate();
+    isHydrated = true;
+    console.log('💧 Store hydrated. Router proceeding.');
   }
+
+  const isAuthenticated = authStore.isAuthenticated;
 
   if (to.meta.requiresAuth) {
     if (!isAuthenticated) {

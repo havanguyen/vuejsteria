@@ -11,7 +11,7 @@ axiosInstance.interceptors.request.use(
     const authStore = useAuthStore();
     const token = authStore.token;
 
-    if (token && authStore.isAuthenticated) {
+    if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
@@ -26,12 +26,17 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
+    const authStore = useAuthStore();
+    const originalRequest = error.config;
+
     if (error.response && error.response.status === 401) {
-      console.error('Unauthorized! Logging out...');
-      const authStore = useAuthStore();
-      authStore.logout();
+      const isLoginAttempt = originalRequest.url.includes('/identity/auth/token');
       
-      window.location.href = '/login';
+      if (!isLoginAttempt && authStore.isAuthenticated) {
+        console.error('Unauthorized! Token likely expired. Logging out...');
+        authStore.logout();
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
