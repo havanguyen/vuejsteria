@@ -19,3 +19,23 @@ export const getAllUsersApi = async () => {
     throw error.response?.data || error;
   }
 };
+
+export const getUserByIdApi = async (userId) => {
+  try {
+    const response = await axiosInstance.get(`/identity/users/${userId}`);
+    return response.data.result;
+  } catch (error) {
+    console.error(`Failed to fetch user with ID ${userId}:`, error);
+    throw error.response?.data || error;
+  }
+};
+
+export const updateUserByAdminApi = async (userId, userData) => {
+  try {
+    const response = await axiosInstance.put(`/identity/users/${userId}`, userData);
+    return response.data.result;
+  } catch (error) {
+    console.error(`Failed to update user ${userId}:`, error);
+    throw error.response?.data || error;
+  }
+};

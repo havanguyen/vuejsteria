@@ -30,7 +30,7 @@ export const useAuthStore = defineStore('auth', {
         this.expiryTime = authData.expiryTime;
 
         await this.fetchAndSetUser();
-        
+
         if (this.user) {
           console.log('✅ Login successful:', this.user);
         } else {
@@ -80,7 +80,7 @@ export const useAuthStore = defineStore('auth', {
           firstName: userInfo.profileResponse?.firstName,
           lastName: userInfo.profileResponse?.lastName,
         };
-        
+
         this.profileId = userInfo.profileResponse?.id || null;
 
         console.log('👤 User info fetched and set:', this.user);
@@ -93,12 +93,24 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) {
         console.error('❌ Failed to fetch user info:', error);
         this.clearSession();
+
+
+        throw error;
       }
     },
     async hydrate() {
       console.log('💧 Hydration process starting...');
-      await this.fetchAndSetUser();
-      console.log(`💧 Hydration finished. User fetched: ${!!this.user}`);
+      try {
+        await this.fetchAndSetUser();
+      } catch (error) {
+         console.error('💧 Hydration failed during fetchAndSetUser:', error);
+
+      } finally {
+         console.log(`💧 Hydration attempt finished. User fetched: ${!!this.user}`);
+
+      }
+
+
     }
   },
   persist: {

@@ -1,18 +1,20 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { useForm, useField } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import { registerSchema } from '@/validations/authSchema';
 import { registerApi } from '@/api/authApi';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { format, parseISO } from 'date-fns';
 
-const authStore = useAuthStore();
 const router = useRouter();
 
 const serverError = ref(null);
 const serverSuccess = ref(null);
 const isSubmitting = ref(false);
+const showPassword = ref(false);
+const showConfirmPassword = ref(false);
+const dobMenu = ref(false);
 
 const { handleSubmit, errors } = useForm({
   validationSchema: toTypedSchema(registerSchema),
@@ -35,6 +37,20 @@ const { value: lastName } = useField('lastName');
 const { value: dob } = useField('dob');
 const { value: city } = useField('city');
 
+const dobForPicker = computed({
+  get: () => {
+    try {
+      return dob.value ? parseISO(dob.value) : null;
+    } catch {
+      return null;
+    }
+  },
+  set: (val) => {
+    dob.value = val ? format(val, 'yyyy-MM-dd') : '';
+    dobMenu.value = false;
+  }
+});
+
 const onSubmit = handleSubmit(async (values) => {
   serverError.value = null;
   serverSuccess.value = null;
@@ -42,7 +58,7 @@ const onSubmit = handleSubmit(async (values) => {
   try {
     const { confirmPassword, ...userData } = values;
     await registerApi(userData);
-    serverSuccess.value = 'Registration successful! Please log in.';
+    serverSuccess.value = 'Registration successful! Redirecting to login...';
 
     setTimeout(() => {
         router.push({ name: 'Login' });
@@ -61,15 +77,26 @@ const onSubmit = handleSubmit(async (values) => {
   <v-container class="fill-height">
     <v-row align="center" justify="center">
       <v-col cols="12" sm="10" md="8" lg="6">
-        <v-card class="pa-4 pa-md-8">
-          <v-card-title class="text-center text-h5 font-weight-medium mb-4">
-             <v-avatar color="primary" class="mb-4">
+        <v-card class="pa-4 pa-md-8 elevation-2">
+          <v-card-title class="text-center text-h5 font-weight-bold mb-6">
+             <v-avatar color="primary" size="large" class="mb-4">
               <v-icon icon="mdi-account-plus" />
             </v-avatar>
             <div>Create your Bookteria Account</div>
           </v-card-title>
 
           <v-card-text>
+            <v-snackbar
+              v-model="serverSuccess"
+              color="success"
+              timeout="2000"
+              location="top right"
+            >
+              {{ serverSuccess }}
+               <template v-slot:actions>
+                  <v-btn icon @click="serverSuccess = null"><v-icon>mdi-close</v-icon></v-btn>
+               </template>
+            </v-snackbar>
             <v-alert
               v-if="serverError"
               type="error"
@@ -79,15 +106,7 @@ const onSubmit = handleSubmit(async (values) => {
             >
               {{ serverError }}
             </v-alert>
-             <v-alert
-              v-if="serverSuccess"
-              type="success"
-              variant="tonal"
-              density="compact"
-              class="mb-4"
-            >
-              {{ serverSuccess }}
-            </v-alert>
+
 
             <v-form @submit.prevent="onSubmit">
               <v-row>
@@ -99,6 +118,8 @@ const onSubmit = handleSubmit(async (values) => {
                       :error-messages="errors.firstName"
                       :disabled="isSubmitting"
                       class="mb-2"
+                      variant="outlined"
+                      density="comfortable"
                     />
                  </v-col>
                  <v-col cols="12" md="6">
@@ -109,6 +130,8 @@ const onSubmit = handleSubmit(async (values) => {
                       :error-messages="errors.lastName"
                       :disabled="isSubmitting"
                       class="mb-2"
+                      variant="outlined"
+                      density="comfortable"
                     />
                  </v-col>
                  <v-col cols="12">
@@ -119,40 +142,68 @@ const onSubmit = handleSubmit(async (values) => {
                       :error-messages="errors.username"
                       :disabled="isSubmitting"
                       class="mb-2"
+                      variant="outlined"
+                      density="comfortable"
                     />
                  </v-col>
                  <v-col cols="12">
                     <v-text-field
                       v-model="password"
                       label="Password"
-                      type="password"
+                      :type="showPassword ? 'text' : 'password'"
                       prepend-inner-icon="mdi-lock-outline"
+                      :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                      @click:append-inner="showPassword = !showPassword"
                       :error-messages="errors.password"
                       :disabled="isSubmitting"
                       class="mb-2"
+                      variant="outlined"
+                      density="comfortable"
                     />
                  </v-col>
                  <v-col cols="12">
                     <v-text-field
                       v-model="confirmPassword"
                       label="Confirm Password"
-                      type="password"
+                      :type="showConfirmPassword ? 'text' : 'password'"
                       prepend-inner-icon="mdi-lock-check-outline"
+                      :append-inner-icon="showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                      @click:append-inner="showConfirmPassword = !showConfirmPassword"
                       :error-messages="errors.confirmPassword"
                       :disabled="isSubmitting"
                       class="mb-2"
+                      variant="outlined"
+                      density="comfortable"
                     />
                  </v-col>
                  <v-col cols="12" md="6">
-                    <v-text-field
-                      v-model="dob"
-                      label="Date of Birth (YYYY-MM-DD)"
-                      prepend-inner-icon="mdi-calendar"
-                      :error-messages="errors.dob"
-                      :disabled="isSubmitting"
-                      placeholder="YYYY-MM-DD"
-                      class="mb-2"
-                    />
+                     <v-menu
+                       v-model="dobMenu"
+                       :close-on-content-click="false"
+                       location="bottom"
+                     >
+                       <template v-slot:activator="{ props }">
+                         <v-text-field
+                           v-model="dob"
+                           label="Date of Birth"
+                           prepend-inner-icon="mdi-calendar"
+                           readonly
+                           v-bind="props"
+                           :error-messages="errors.dob"
+                           :disabled="isSubmitting"
+                           placeholder="YYYY-MM-DD"
+                           class="mb-2"
+                           variant="outlined"
+                           density="comfortable"
+                         />
+                       </template>
+                       <v-date-picker
+                         v-model="dobForPicker"
+                         show-adjacent-months
+                         hide-header
+                         color="primary"
+                       />
+                     </v-menu>
                  </v-col>
                  <v-col cols="12" md="6">
                     <v-text-field
@@ -162,6 +213,8 @@ const onSubmit = handleSubmit(async (values) => {
                       :error-messages="errors.city"
                       :disabled="isSubmitting"
                       class="mb-2"
+                      variant="outlined"
+                      density="comfortable"
                     />
                  </v-col>
               </v-row>
@@ -173,12 +226,15 @@ const onSubmit = handleSubmit(async (values) => {
                 size="large"
                 :loading="isSubmitting"
                 :disabled="isSubmitting"
-                class="mt-4"
+                class="mt-6"
+                prepend-icon="mdi-account-plus-outline"
               >
                 Sign Up
               </v-btn>
             </v-form>
           </v-card-text>
+
+           <v-divider class="my-3"></v-divider>
 
            <v-card-actions class="d-flex justify-center px-4 pb-4">
              <router-link :to="{ name: 'Login' }" class="text-body-2 text-decoration-none">

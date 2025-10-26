@@ -4,9 +4,9 @@ import Footer from './Footer.vue';
 </script>
 
 <template>
-  <v-layout class="d-flex flex-column" style="height: 100%;">
+  <v-layout class="d-flex flex-column">
     <Header />
-    <v-main style="flex-grow: 1; overflow-y: auto;">
+    <v-main style="overflow-y: auto;">
       <v-container fluid class="pa-4 pa-md-6">
         <router-view />
       </v-container>

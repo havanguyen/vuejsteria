@@ -1,10 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router'; // Import useRouter
 import { getAllUsersApi } from '@/api/userApi';
 
 const users = ref([]);
 const loading = ref(true);
 const error = ref(null);
+const router = useRouter(); // Khởi tạo router
 
 const headers = [
   { title: 'ID', key: 'id', sortable: false },
@@ -12,7 +14,7 @@ const headers = [
   { title: 'First Name', key: 'profileResponse.firstName' },
   { title: 'Last Name', key: 'profileResponse.lastName' },
   { title: 'Roles', key: 'roles', sortable: false },
-  // { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
+  // { title: 'Actions', key: 'actions', sortable: false, align: 'end' }, // Có thể thêm lại sau
 ];
 
 const fetchUsers = async () => {
@@ -26,6 +28,13 @@ const fetchUsers = async () => {
     error.value = 'Could not load users.';
   } finally {
     loading.value = false;
+  }
+};
+
+// Hàm xử lý khi click vào một hàng
+const viewUserDetail = (event, { item }) => {
+  if (item && item.id) {
+    router.push({ name: 'AdminUserDetail', params: { id: item.id } });
   }
 };
 
@@ -55,9 +64,10 @@ onMounted(fetchUsers);
           :items="users"
           :loading="loading"
           item-value="id"
-          class="elevation-0 border rounded-lg"
+          class="elevation-0 border rounded-lg data-table-clickable-rows"
           items-per-page="10"
           hover
+          @click:row="viewUserDetail"
         >
          <template v-slot:item.profileResponse.firstName="{ item }">
             {{ item.profileResponse?.firstName || '-' }}
@@ -82,8 +92,10 @@ onMounted(fetchUsers);
           </template>
 
            <template v-slot:loading>
-            <v-skeleton-loader type="table-tbody"></v-skeleton-loader>
-          </template>
+             <div class="d-flex justify-center align-center pa-5">
+                 <v-progress-circular indeterminate color="primary"></v-progress-circular>
+             </div>
+           </template>
            <template v-slot:no-data>
              <div class="text-center pa-6 text-grey">
                  <v-icon size="large" class="mb-2">mdi-account-search-outline</v-icon>
@@ -96,3 +108,9 @@ onMounted(fetchUsers);
     </v-card>
   </v-container>
 </template>
+
+<style>
+.data-table-clickable-rows tbody tr:hover {
+  cursor: pointer;
+}
+</style>

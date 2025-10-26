@@ -31,6 +31,12 @@ const routes = [
         name: 'AdminUserList',
         component: () => import('@/views/admin/UserListPage.vue'),
       },
+      { // Thêm route chi tiết user
+        path: 'users/:id', // id là param
+        name: 'AdminUserDetail',
+        component: () => import('@/views/admin/UserDetailPage.vue'),
+        props: true // Tự động pass param 'id' vào component làm prop
+      },
     ],
   },
   {
@@ -79,8 +85,11 @@ router.beforeEach(async (to, from, next) => {
       });
     } else {
       if (to.meta.roles) {
-        const hasAccess = authStore.userRoles.some(role => to.meta.roles.includes(role));
+        // Chỉ kiểm tra roles nếu route yêu cầu
+        const userRoles = authStore.userRoles || []; // Đảm bảo là mảng
+        const hasAccess = userRoles.some(role => to.meta.roles.includes(role));
         if (!hasAccess) {
+          console.warn(`User does not have required roles (${to.meta.roles.join(', ')}) for route ${to.path}. Redirecting home.`);
           next({ name: 'Home' });
         } else {
           next();
