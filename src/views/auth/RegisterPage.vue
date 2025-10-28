@@ -24,6 +24,7 @@ const { handleSubmit, errors } = useForm({
     confirmPassword: '',
     firstName: '',
     lastName: '',
+    email: '',
     dob: '',
     city: '',
   },
@@ -34,6 +35,7 @@ const { value: password } = useField('password');
 const { value: confirmPassword } = useField('confirmPassword');
 const { value: firstName } = useField('firstName');
 const { value: lastName } = useField('lastName');
+const { value: email } = useField('email');
 const { value: dob } = useField('dob');
 const { value: city } = useField('city');
 
@@ -107,7 +109,6 @@ const onSubmit = handleSubmit(async (values) => {
               {{ serverError }}
             </v-alert>
 
-
             <v-form @submit.prevent="onSubmit">
               <v-row>
                  <v-col cols="12" md="6">
@@ -144,6 +145,19 @@ const onSubmit = handleSubmit(async (values) => {
                       class="mb-2"
                       variant="outlined"
                       density="comfortable"
+                    />
+                 </v-col>
+                 <v-col cols="12">
+                   <v-text-field
+                      v-model="email"
+                      label="Email"
+                      prepend-inner-icon="mdi-email-outline"
+                      :error-messages="errors.email"
+                      :disabled="isSubmitting"
+                      class="mb-2"
+                      variant="outlined"
+                      density="comfortable"
+                      type="email"
                     />
                  </v-col>
                  <v-col cols="12">

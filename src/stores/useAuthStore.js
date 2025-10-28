@@ -79,6 +79,7 @@ export const useAuthStore = defineStore('auth', {
           roles: roles,
           firstName: userInfo.profileResponse?.firstName,
           lastName: userInfo.profileResponse?.lastName,
+          email: userInfo.profileResponse?.email,
         };
 
         this.profileId = userInfo.profileResponse?.id || null;

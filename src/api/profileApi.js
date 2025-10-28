@@ -9,13 +9,3 @@ export const getProfileApi = async (profileId) => {
     throw error.response?.data || error;
   }
 };
-
-export const updateProfileApi = async (userId, profileData) => {
-  try {
-    const response = await axiosInstance.put(`/profile/users/by-user/${userId}`, profileData);
-    return response.data.result;
-  } catch (error) {
-    console.error('Failed to update profile:', error);
-    throw error.response?.data || error;
-  }
-};

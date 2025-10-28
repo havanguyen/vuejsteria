@@ -1,20 +1,21 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router'; // Import useRouter
+import { useRouter } from 'vue-router';
 import { getAllUsersApi } from '@/api/userApi';
 
 const users = ref([]);
 const loading = ref(true);
 const error = ref(null);
-const router = useRouter(); // Khởi tạo router
+const router = useRouter();
 
 const headers = [
   { title: 'ID', key: 'id', sortable: false },
   { title: 'Username', key: 'username' },
   { title: 'First Name', key: 'profileResponse.firstName' },
   { title: 'Last Name', key: 'profileResponse.lastName' },
+  { title: 'Email', key: 'profileResponse.email', sortable: false },
+  { title: 'Status', key: 'active', sortable: true },
   { title: 'Roles', key: 'roles', sortable: false },
-  // { title: 'Actions', key: 'actions', sortable: false, align: 'end' }, // Có thể thêm lại sau
 ];
 
 const fetchUsers = async () => {
@@ -31,7 +32,6 @@ const fetchUsers = async () => {
   }
 };
 
-// Hàm xử lý khi click vào một hàng
 const viewUserDetail = (event, { item }) => {
   if (item && item.id) {
     router.push({ name: 'AdminUserDetail', params: { id: item.id } });
@@ -69,11 +69,23 @@ onMounted(fetchUsers);
           hover
           @click:row="viewUserDetail"
         >
-         <template v-slot:item.profileResponse.firstName="{ item }">
+         <template v-slot:item.profileResponse\.firstName="{ item }">
             {{ item.profileResponse?.firstName || '-' }}
          </template>
-         <template v-slot:item.profileResponse.lastName="{ item }">
+         <template v-slot:item.profileResponse\.lastName="{ item }">
             {{ item.profileResponse?.lastName || '-' }}
+         </template>
+         <template v-slot:item.profileResponse\.email="{ item }">
+            {{ item.profileResponse?.email || '-' }}
+         </template>
+          <template v-slot:item.active="{ item }">
+             <v-chip
+                :color="item.active ? 'success' : 'error'"
+                size="small"
+                label
+             >
+                {{ item.active ? 'Active' : 'Inactive' }}
+             </v-chip>
          </template>
          <template v-slot:item.roles="{ item }">
             <template v-if="item.roles && item.roles.length > 0">

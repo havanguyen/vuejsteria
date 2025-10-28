@@ -39,3 +39,13 @@ export const updateUserByAdminApi = async (userId, userData) => {
     throw error.response?.data || error;
   }
 };
+
+export const deleteUserByAdminApi = async (userId) => {
+  try {
+    const response = await axiosInstance.delete(`/identity/users/${userId}`);
+    return response.data.result;
+  } catch (error) {
+     console.error(`Failed to delete user ${userId}:`, error);
+     throw error.response?.data || error;
+  }
+};

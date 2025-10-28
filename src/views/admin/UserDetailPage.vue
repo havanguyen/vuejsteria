@@ -5,7 +5,7 @@ import { getUserByIdApi, updateUserByAdminApi } from '@/api/userApi';
 import { useForm, useField } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
-import { format, parseISO, isValid } from 'date-fns';
+import { format, parseISO, isValid as isDateValid } from 'date-fns';
 
 const route = useRoute();
 const router = useRouter();
@@ -21,36 +21,26 @@ const allRoles = ref(['USER', 'ADMIN']);
 
 const userId = computed(() => route.params.id);
 
-const isValidDate = (dateString) => {
+const isValidDateFn = (dateString) => {
   if (!dateString) return true;
-
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
-
-  const parts = dateString.split('-');
-  const year = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10);
-  const day = parseInt(parts[2], 10);
-
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    !isNaN(date.getTime()) &&
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
+  const date = parseISO(dateString);
+  return isDateValid(date);
 };
 
 const adminUpdateUserSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Invalid email format').optional().nullable(),
   dob: z.string()
-       .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date of birth must be in YYYY-MM-DD format' })
-       .refine(isValidDate, { message: 'Invalid date provided' })
-       .nullable().optional(),
-  city: z.string().optional(),
-  password: z.string().min(6, 'Password must be at least 6 characters').or(z.literal('')).optional(),
+       .nullable()
+       .optional()
+       .refine(val => !val || /^\d{4}-\d{2}-\d{2}$/.test(val), { message: 'Date must be in YYYY-MM-DD format or empty' })
+       .refine(val => !val || isValidDateFn(val), { message: 'Invalid date provided' }),
+  city: z.string().optional().nullable(),
+  password: z.string().min(6, 'Password must be at least 6 characters').or(z.literal('')).optional().nullable(),
   roles: z.array(z.string()).min(1, 'At least one role is required'),
+  isActive: z.boolean(),
 });
 
 const { handleSubmit, errors, setValues, resetForm } = useForm({
@@ -58,19 +48,23 @@ const { handleSubmit, errors, setValues, resetForm } = useForm({
   initialValues: {
     firstName: '',
     lastName: '',
+    email: '',
     dob: null,
     city: '',
     password: '',
     roles: [],
+    isActive: true,
   }
 });
 
 const { value: firstName } = useField('firstName');
 const { value: lastName } = useField('lastName');
+const { value: email } = useField('email');
 const { value: dob } = useField('dob');
 const { value: city } = useField('city');
 const { value: password } = useField('password');
 const { value: roles } = useField('roles');
+const { value: isActive } = useField('isActive');
 
 const dobForPicker = computed({
   get: () => {
@@ -103,10 +97,12 @@ const fetchUser = async () => {
         values: {
             firstName: data.profileResponse?.firstName || '',
             lastName: data.profileResponse?.lastName || '',
+            email: data.profileResponse?.email || '',
             dob: data.profileResponse?.dob || null,
             city: data.profileResponse?.city || '',
             password: '',
             roles: data.roles?.map(r => r.name) || [],
+            isActive: data.active === undefined ? true : data.active,
         }
     });
   } catch (err) {
@@ -128,6 +124,12 @@ const onSubmit = handleSubmit(async (values) => {
     if (!updateData.password) {
       delete updateData.password;
     }
+    if (updateData.dob === '') {
+        updateData.dob = null;
+    }
+    if (updateData.city === '') {
+        updateData.city = null;
+    }
 
     const updatedUser = await updateUserByAdminApi(userId.value, updateData);
     user.value = updatedUser;
@@ -135,10 +137,12 @@ const onSubmit = handleSubmit(async (values) => {
         values: {
             firstName: updatedUser.profileResponse?.firstName || '',
             lastName: updatedUser.profileResponse?.lastName || '',
+            email: updatedUser.profileResponse?.email || '',
             dob: updatedUser.profileResponse?.dob || null,
             city: updatedUser.profileResponse?.city || '',
             password: '',
             roles: updatedUser.roles?.map(r => r.name) || [],
+            isActive: updatedUser.active === undefined ? true : updatedUser.active,
         },
         errors: {}
     });
@@ -152,12 +156,10 @@ const onSubmit = handleSubmit(async (values) => {
   }
 });
 
-
 onMounted(fetchUser);
 
-
 watch(userId, (newId, oldId) => {
-    if (newId !== oldId) {
+    if (newId !== oldId && newId) {
         fetchUser();
     }
 });
@@ -251,6 +253,18 @@ watch(userId, (newId, oldId) => {
                 </v-col>
              </v-row>
 
+             <v-text-field
+                  v-model="email"
+                  label="Email"
+                  prepend-inner-icon="mdi-email-outline"
+                  :error-messages="errors.email"
+                  :disabled="isSubmitting"
+                  class="mb-2"
+                  variant="outlined"
+                  density="comfortable"
+                  type="email"
+                />
+
              <v-row>
                <v-col cols="12" md="6">
                   <v-menu
@@ -327,6 +341,16 @@ watch(userId, (newId, oldId) => {
                 variant="outlined"
                 density="comfortable"
               />
+
+               <v-switch
+                  v-model="isActive"
+                  :label="isActive ? 'Active' : 'Inactive'"
+                  color="success"
+                  inset
+                  :error-messages="errors.isActive"
+                  :disabled="isSubmitting"
+                  class="mt-2"
+                />
 
               <v-btn
                 type="submit"
