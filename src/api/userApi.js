@@ -10,6 +10,17 @@ export const getMyInfoApi = async () => {
   }
 };
 
+export const updateMyInfoApi = async (userData) => {
+  try {
+    const response = await axiosInstance.put(`/identity/users/my-info`, userData);
+    return response.data.result;
+  } catch (error) {
+    console.error(`Failed to update my info:`, error);
+    throw error.response?.data || error;
+  }
+};
+
+
 export const getAllUsersApi = async () => {
   try {
     const response = await axiosInstance.get('/identity/users');

@@ -2,8 +2,10 @@
 import { ref, onMounted, computed } from 'vue';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { format, parseISO } from 'date-fns';
+import { useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
+const router = useRouter();
 const profile = ref(null);
 const loading = ref(true);
 const serverError = ref(null);
@@ -11,10 +13,14 @@ const serverError = ref(null);
 const dobFormatted = computed(() => {
     if (profile.value?.dob) {
         try {
-            return format(parseISO(profile.value.dob), 'MMMM d, yyyy');
-        } catch {
-            return profile.value.dob;
+            const date = parseISO(profile.value.dob);
+            if (!isNaN(date.getTime())) {
+                 return format(date, 'MMMM d, yyyy');
+            }
+        } catch(e) {
+            console.error("Error parsing date:", profile.value.dob, e);
         }
+         return profile.value.dob;
     }
     return 'Not set';
 });
@@ -32,7 +38,6 @@ const fetchProfileData = () => {
     };
     loading.value = false;
   } else {
-
       const unsubscribe = authStore.$subscribe((mutation, state) => {
          if (state.user) {
              profile.value = {
@@ -47,15 +52,13 @@ const fetchProfileData = () => {
          }
       });
 
-      if (!profile.value) {
-          setTimeout(() => {
-              if (loading.value) {
-                 loading.value = false;
-                 serverError.value = 'Could not load profile data. User info not available in store.';
-                 unsubscribe();
-              }
-          }, 5000);
-      }
+      setTimeout(() => {
+          if (loading.value && !profile.value) {
+             loading.value = false;
+             serverError.value = 'Could not load profile data. User info not available.';
+             unsubscribe();
+          }
+      }, 5000);
   }
 };
 
@@ -67,13 +70,37 @@ onMounted(() => {
     serverError.value = 'User not authenticated.';
   }
 });
+
+authStore.$subscribe((mutation, state) => {
+    if(state.user && authStore.isAuthenticated) {
+         profile.value = {
+            firstName: state.user.firstName,
+            lastName: state.user.lastName,
+            email: state.user.email,
+            dob: state.user.dob,
+            city: state.user.city,
+         };
+    } else {
+        profile.value = null;
+    }
+});
+
 </script>
 
 <template>
   <v-container max-width="960">
     <v-card class="pa-6 elevation-1">
-      <v-card-title class="text-h4 font-weight-medium mb-6">
-        User Profile
+      <v-card-title class="text-h4 font-weight-medium mb-2 d-flex justify-space-between align-center">
+        <span>User Profile</span>
+         <v-btn
+           color="primary"
+           variant="outlined"
+           prepend-icon="mdi-pencil"
+           :to="{ name: 'EditProfile' }"
+           :disabled="loading || serverError || !profile"
+         >
+           Edit Profile
+         </v-btn>
       </v-card-title>
       <v-card-text>
         <div v-if="loading" class="text-center py-10">

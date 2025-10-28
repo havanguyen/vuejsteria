@@ -19,6 +19,12 @@ const routes = [
         name: 'Profile',
         component: () => import('@/views/profile/ProfilePage.vue'),
       },
+      {
+        path: 'profile/edit',
+        name: 'EditProfile',
+        component: () => import('@/views/profile/EditProfilePage.vue'),
+        meta: { requiresAuth: true }
+      },
     ],
   },
   {
@@ -31,11 +37,11 @@ const routes = [
         name: 'AdminUserList',
         component: () => import('@/views/admin/UserListPage.vue'),
       },
-      { // Thêm route chi tiết user
-        path: 'users/:id', // id là param
+      {
+        path: 'users/:id',
         name: 'AdminUserDetail',
         component: () => import('@/views/admin/UserDetailPage.vue'),
-        props: true // Tự động pass param 'id' vào component làm prop
+        props: true
       },
     ],
   },
@@ -85,8 +91,7 @@ router.beforeEach(async (to, from, next) => {
       });
     } else {
       if (to.meta.roles) {
-        // Chỉ kiểm tra roles nếu route yêu cầu
-        const userRoles = authStore.userRoles || []; // Đảm bảo là mảng
+        const userRoles = authStore.userRoles || [];
         const hasAccess = userRoles.some(role => to.meta.roles.includes(role));
         if (!hasAccess) {
           console.warn(`User does not have required roles (${to.meta.roles.join(', ')}) for route ${to.path}. Redirecting home.`);

@@ -9,11 +9,10 @@ export const useAuthStore = defineStore('auth', {
     token: null,
     expiryTime: null,
     user: null,
-    profileId: null,
   }),
   getters: {
     isAuthenticated(state) {
-      return !!state.token && !!state.user && new Date(state.expiryTime) > new Date();
+      return !!state.token && !!state.user && state.expiryTime && new Date(state.expiryTime) > new Date();
     },
     userRoles(state) {
       return state.user?.roles || [];
@@ -60,14 +59,14 @@ export const useAuthStore = defineStore('auth', {
       this.token = null;
       this.expiryTime = null;
       this.user = null;
-      this.profileId = null;
     },
     async fetchAndSetUser() {
-      if (!this.token || !(new Date(this.expiryTime) > new Date())) {
-          console.log('ℹ️ No valid token found, skipping fetch user.');
+      if (!this.token || !this.expiryTime || !(new Date(this.expiryTime) > new Date())) {
+          console.log('ℹ️ No valid token or expired token, skipping fetch user.');
           this.clearSession();
           return;
       };
+
       try {
         const userInfo = await getMyInfoApi();
         const decodedToken = jwtDecode(this.token);
@@ -80,38 +79,34 @@ export const useAuthStore = defineStore('auth', {
           firstName: userInfo.profileResponse?.firstName,
           lastName: userInfo.profileResponse?.lastName,
           email: userInfo.profileResponse?.email,
+          dob: userInfo.profileResponse?.dob,
+          city: userInfo.profileResponse?.city,
         };
 
-        this.profileId = userInfo.profileResponse?.id || null;
-
-        console.log('👤 User info fetched and set:', this.user);
-        console.log('🆔 Profile ID set:', this.profileId);
-
-        if (!this.profileId) {
-            console.warn('⚠️ Warning: profileId is null after fetching user info. The user may not have a profile yet.');
-        }
+        console.log('👤 User info fetched and set:', JSON.parse(JSON.stringify(this.user)));
 
       } catch (error) {
         console.error('❌ Failed to fetch user info:', error);
-        this.clearSession();
-
-
-        throw error;
+         if (error?.response?.status === 401 || error?.message?.includes('401')) {
+             console.log('↪️ Fetch user failed with 401, clearing session.');
+             this.clearSession();
+         }
       }
     },
     async hydrate() {
       console.log('💧 Hydration process starting...');
       try {
-        await this.fetchAndSetUser();
+        if (this.token && this.expiryTime && new Date(this.expiryTime) > new Date()) {
+            await this.fetchAndSetUser();
+        } else {
+             console.log('💧 Hydration: No valid token found in storage.');
+             this.clearSession();
+        }
       } catch (error) {
-         console.error('💧 Hydration failed during fetchAndSetUser:', error);
-
+         console.error('💧 Hydration encountered an error during fetchAndSetUser:', error);
       } finally {
          console.log(`💧 Hydration attempt finished. User fetched: ${!!this.user}`);
-
       }
-
-
     }
   },
   persist: {
