@@ -7,25 +7,25 @@ const routes = [
   {
     path: '/',
     component: MainLayout,
-    meta: { requiresAuth: true },
     children: [
       {
         path: '',
         name: 'Home',
-        component: HomePage,
+        component: HomePage
       },
       {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/profile/ProfilePage.vue'),
+        meta: { requiresAuth: true }
       },
       {
         path: 'profile/edit',
         name: 'EditProfile',
         component: () => import('@/views/profile/EditProfilePage.vue'),
         meta: { requiresAuth: true }
-      },
-    ],
+      }
+    ]
   },
   {
     path: '/admin',
@@ -35,38 +35,38 @@ const routes = [
       {
         path: 'users',
         name: 'AdminUserList',
-        component: () => import('@/views/admin/UserListPage.vue'),
+        component: () => import('@/views/admin/UserListPage.vue')
       },
       {
         path: 'users/:id',
         name: 'AdminUserDetail',
         component: () => import('@/views/admin/UserDetailPage.vue'),
         props: true
-      },
-    ],
+      }
+    ]
   },
   {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/auth/LoginPage.vue'),
-    meta: { requiresGuest: true },
+    meta: { requiresGuest: true }
   },
   {
     path: '/register',
     name: 'Register',
     component: () => import('@/views/auth/RegisterPage.vue'),
-    meta: { requiresGuest: true },
+    meta: { requiresGuest: true }
   },
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: () => import('@/views/NotFoundPage.vue'),
-  },
+    component: () => import('@/views/NotFoundPage.vue')
+  }
 ];
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes,
+  routes
 });
 
 let isHydrated = false;
@@ -75,10 +75,8 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
 
   if (!isHydrated) {
-    console.log('💧 Router waiting for store hydration...');
     await authStore.hydrate();
     isHydrated = true;
-    console.log('💧 Store hydrated. Router proceeding.');
   }
 
   const isAuthenticated = authStore.isAuthenticated;
@@ -87,14 +85,15 @@ router.beforeEach(async (to, from, next) => {
     if (!isAuthenticated) {
       next({
         name: 'Login',
-        query: { redirect: to.fullPath },
+        query: { redirect: to.fullPath }
       });
     } else {
       if (to.meta.roles) {
         const userRoles = authStore.userRoles || [];
-        const hasAccess = userRoles.some(role => to.meta.roles.includes(role));
+        const hasAccess = userRoles.some((role) =>
+          to.meta.roles.includes(role)
+        );
         if (!hasAccess) {
-          console.warn(`User does not have required roles (${to.meta.roles.join(', ')}) for route ${to.path}. Redirecting home.`);
           next({ name: 'Home' });
         } else {
           next();

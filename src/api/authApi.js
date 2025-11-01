@@ -10,12 +10,15 @@ export const loginApi = async (credentials) => {
 };
 
 export const registerApi = async (userData) => {
-   try {
-       const response = await axiosInstance.post('/identity/users/registration', userData);
-       return response.data.result;
-   } catch (error) {
-       throw error.response?.data || error;
-   }
+  try {
+    const response = await axiosInstance.post(
+      '/identity/users/registration',
+      userData
+    );
+    return response.data.result;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
 };
 
 export const logoutApi = async (token) => {
@@ -23,6 +26,17 @@ export const logoutApi = async (token) => {
     await axiosInstance.post('/identity/auth/logout', { token });
   } catch (error) {
     console.error('Logout API failed:', error);
+    throw error.response?.data || error;
+  }
+};
+
+export const refreshTokenApi = async (refreshToken) => {
+  try {
+    const response = await axiosInstance.post('/identity/auth/refresh', {
+      token: refreshToken
+    });
+    return response.data.result;
+  } catch (error) {
     throw error.response?.data || error;
   }
 };

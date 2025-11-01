@@ -1,16 +1,18 @@
-<script setup>
-import Header from './Header.vue';
-import Footer from './Footer.vue';
-</script>
-
 <template>
-  <v-layout class="d-flex flex-column">
+  <v-layout>
     <Header />
-    <v-main style="overflow-y: auto;">
-      <v-container fluid class="pa-4 pa-md-6">
+    <v-main>
+      <GlobalLoadingIndicator />
+      <v-container fluid>
         <router-view />
       </v-container>
     </v-main>
     <Footer />
   </v-layout>
 </template>
+
+<script setup>
+import Header from './Header.vue';
+import Footer from './Footer.vue';
+import GlobalLoadingIndicator from './GlobalLoadingIndicator.vue';
+</script>

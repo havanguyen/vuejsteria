@@ -1,53 +1,3 @@
-<script setup>
-import { ref, nextTick } from 'vue';
-import { useRouter, useRoute, RouterLink } from 'vue-router';
-import { useForm, useField } from 'vee-validate';
-import { toTypedSchema } from '@vee-validate/zod';
-import { loginSchema } from '@/validations/authSchema';
-import { loginApi } from '@/api/authApi';
-import { useAuthStore } from '@/stores/useAuthStore';
-
-const authStore = useAuthStore();
-const router = useRouter();
-const route = useRoute();
-
-const serverError = ref(null);
-const isSubmitting = ref(false);
-const showPassword = ref(false);
-
-const { handleSubmit, errors } = useForm({
-  validationSchema: toTypedSchema(loginSchema),
-  initialValues: {
-    username: '',
-    password: '',
-  },
-});
-
-const { value: username } = useField('username');
-const { value: password } = useField('password');
-
-const onSubmit = handleSubmit(async (values) => {
-  serverError.value = null;
-  isSubmitting.value = true;
-  try {
-    const authData = await loginApi(values);
-    await authStore.login(authData);
-
-    await nextTick();
-
-    const redirectPath = route.query.redirect || '/';
-    console.log(`Login successful, attempting to redirect to: ${redirectPath}`);
-    router.push(redirectPath);
-
-  } catch (err) {
-    console.error('Login failed:', err);
-    serverError.value = err?.title || err?.message || 'Login failed. Please check your credentials or user info fetching failed.';
-  } finally {
-    isSubmitting.value = false;
-  }
-});
-</script>
-
 <template>
   <v-container class="fill-height">
     <v-row align="center" justify="center">
@@ -61,15 +11,17 @@ const onSubmit = handleSubmit(async (values) => {
           </v-card-title>
 
           <v-card-text>
-            <v-alert
-              v-if="serverError"
-              type="error"
-              variant="tonal"
-              density="compact"
-              class="mb-4"
-            >
-              {{ serverError }}
-            </v-alert>
+            <v-slide-y-transition>
+              <v-alert
+                v-if="serverError"
+                type="error"
+                variant="tonal"
+                density="compact"
+                class="mb-4"
+              >
+                {{ serverError }}
+              </v-alert>
+            </v-slide-y-transition>
 
             <v-form @submit.prevent="onSubmit">
               <v-text-field
@@ -92,8 +44,8 @@ const onSubmit = handleSubmit(async (values) => {
                 :error-messages="errors.password"
                 :disabled="isSubmitting"
                 class="mb-3"
-                 variant="outlined"
-                 density="comfortable"
+                variant="outlined"
+                density="comfortable"
               />
               <v-btn
                 type="submit"
@@ -112,15 +64,70 @@ const onSubmit = handleSubmit(async (values) => {
           <v-divider class="my-3"></v-divider>
 
           <v-card-actions class="d-flex flex-column align-center px-4 pb-4">
-             <router-link :to="{ name: 'Register' }" class="text-body-2 text-decoration-none mb-2">
-                Don't have an account? Sign Up
-             </router-link>
-             <router-link to="#" class="text-caption text-decoration-none text-grey">
-                Forgot password?
-             </router-link>
+            <router-link
+              :to="{ name: 'Register' }"
+              class="text-body-2 text-decoration-none mb-2"
+            >
+              Don't have an account? Sign Up
+            </router-link>
+            <router-link
+              to="#"
+              class="text-caption text-decoration-none text-grey"
+            >
+              Forgot password?
+            </router-link>
           </v-card-actions>
         </v-card>
       </v-col>
     </v-row>
   </v-container>
 </template>
+
+<script setup>
+import { ref } from 'vue';
+import { useRouter, useRoute, RouterLink } from 'vue-router';
+import { useForm, useField } from 'vee-validate';
+import { toTypedSchema } from '@vee-validate/zod';
+import { loginSchema } from '@/validations/authSchema';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
+
+const authStore = useAuthStore();
+const notificationStore = useNotificationStore();
+const router = useRouter();
+const route = useRoute();
+
+const serverError = ref(null);
+const isSubmitting = ref(false);
+const showPassword = ref(false);
+
+const { handleSubmit, errors } = useForm({
+  validationSchema: toTypedSchema(loginSchema),
+  initialValues: {
+    username: '',
+    password: ''
+  }
+});
+
+const { value: username } = useField('username');
+const { value: password } = useField('password');
+
+const onSubmit = handleSubmit(async (values) => {
+  serverError.value = null;
+  isSubmitting.value = true;
+  try {
+    await authStore.login(values);
+
+    const redirectPath = route.query.redirect || '/';
+    router.push(redirectPath);
+    notificationStore.showSuccess('Đăng nhập thành công!');
+  } catch (err) {
+    serverError.value =
+      err?.title ||
+      err?.message ||
+      'Login failed. Please check your credentials.';
+  } finally {
+    isSubmitting.value = false;
+  }
+});
+</script>

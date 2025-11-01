@@ -1,116 +1,138 @@
 import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
 import { jwtDecode } from 'jwt-decode';
-import { getRolesFromScope } from '@/utils/authUtils';
+import { loginApi, logoutApi, refreshTokenApi } from '@/api/authApi';
 import { getMyInfoApi } from '@/api/userApi';
-import { logoutApi } from '@/api/authApi';
+import { getRolesFromScope } from '@/utils/authUtils';
+import { useNotificationStore } from './useNotificationStore';
 
-export const useAuthStore = defineStore('auth', {
-  state: () => ({
-    token: null,
-    expiryTime: null,
-    user: null,
-  }),
-  getters: {
-    isAuthenticated(state) {
-      return !!state.token && !!state.user && state.expiryTime && new Date(state.expiryTime) > new Date();
-    },
-    userRoles(state) {
-      return state.user?.roles || [];
-    },
-    userId(state) {
-      return state.user?.id || null;
+export const useAuthStore = defineStore(
+  'auth',
+  () => {
+    const token = ref(null);
+    const refreshToken = ref(null);
+    const user = ref(null);
+    const isProfileLoading = ref(false);
+
+    const isAuthenticated = computed(() => !!token.value && !!user.value);
+    
+    const userRoles = computed(() => {
+      if (!user.value?.roles) return [];
+      if (typeof user.value.roles[0] === 'string') {
+        return user.value.roles;
+      }
+      return user.value.roles.map((r) => r.name);
+    });
+
+    const isAdmin = computed(() => userRoles.value.includes('ADMIN'));
+
+    function setTokens(accessToken, newRefreshToken) {
+      token.value = accessToken;
+      if (newRefreshToken) {
+        refreshToken.value = newRefreshToken;
+      }
     }
-  },
-  actions: {
-    async login(authData) {
-      try {
-        jwtDecode(authData.token);
-        this.token = authData.token;
-        this.expiryTime = authData.expiryTime;
 
-        await this.fetchAndSetUser();
+    async function login(credentials) {
+      const authData = await loginApi(credentials);
+      setTokens(authData.token, authData.refreshToken);
+      await fetchMyInfo();
+    }
 
-        if (this.user) {
-          console.log('✅ Login successful:', this.user);
-        } else {
-           throw new Error("Failed to fetch user info after login.");
-        }
+    async function register(userData) {
+      await registerApi(userData);
+    }
 
-      } catch (error) {
-        console.error('❌ Error during login or fetching user info:', error);
-        this.clearSession();
-        throw error;
-      }
-    },
-    async logout() {
-      console.log('🚪 Logging out...');
-      const currentToken = this.token;
-      this.clearSession();
-      if (currentToken) {
+    async function logout() {
+      if (token.value) {
         try {
-          await logoutApi(currentToken);
-          console.log('✅ Token invalidated on server.');
+          await logoutApi(token.value);
         } catch (error) {
-          console.error('⚠️ Failed to invalidate token on server (token already cleared locally):', error);
+          console.error('Logout API failed, logging out locally anyway.', error);
         }
       }
-    },
-    clearSession() {
-      this.token = null;
-      this.expiryTime = null;
-      this.user = null;
-    },
-    async fetchAndSetUser() {
-      if (!this.token || !this.expiryTime || !(new Date(this.expiryTime) > new Date())) {
-          console.log('ℹ️ No valid token or expired token, skipping fetch user.');
-          this.clearSession();
-          return;
-      };
+      token.value = null;
+      refreshToken.value = null;
+      user.value = null;
+      
+      const router = (await import('@/router')).default;
+      router.push('/login');
+    }
 
+    async function fetchMyInfo() {
+      if (!token.value) return;
+
+      isProfileLoading.value = true;
       try {
         const userInfo = await getMyInfoApi();
-        const decodedToken = jwtDecode(this.token);
-        const roles = getRolesFromScope(decodedToken.scope);
-
-        this.user = {
-          id: userInfo.id,
-          username: userInfo.username,
-          roles: roles,
-          firstName: userInfo.profileResponse?.firstName,
-          lastName: userInfo.profileResponse?.lastName,
-          email: userInfo.profileResponse?.email,
-          dob: userInfo.profileResponse?.dob,
-          city: userInfo.profileResponse?.city,
-        };
-
-        console.log('👤 User info fetched and set:', JSON.parse(JSON.stringify(this.user)));
-
+        user.value = userInfo;
       } catch (error) {
-        console.error('❌ Failed to fetch user info:', error);
-         if (error?.response?.status === 401 || error?.message?.includes('401')) {
-             console.log('↪️ Fetch user failed with 401, clearing session.');
-             this.clearSession();
-         }
-      }
-    },
-    async hydrate() {
-      console.log('💧 Hydration process starting...');
-      try {
-        if (this.token && this.expiryTime && new Date(this.expiryTime) > new Date()) {
-            await this.fetchAndSetUser();
+        console.error('Failed to fetch full user info:', error);
+        const notificationStore = useNotificationStore();
+        notificationStore.showError(
+          'Không thể tải hồ sơ. Một số thông tin có thể bị thiếu.'
+        );
+
+        if (error.response && error.response.status === 401) {
+          await logout();
         } else {
-             console.log('💧 Hydration: No valid token found in storage.');
-             this.clearSession();
+          try {
+            const decodedToken = jwtDecode(token.value);
+            const roles = getRolesFromScope(decodedToken.scope);
+            user.value = {
+              id: decodedToken.sub,
+              username: decodedToken.sub,
+              roles: roles.map(r => ({ name: r })),
+              profileResponse: null,
+              active: true
+            };
+          } catch (tokenError) {
+            console.error('Token is invalid, logging out.', tokenError);
+            await logout();
+          }
         }
-      } catch (error) {
-         console.error('💧 Hydration encountered an error during fetchAndSetUser:', error);
       } finally {
-         console.log(`💧 Hydration attempt finished. User fetched: ${!!this.user}`);
+        isProfileLoading.value = false;
       }
     }
+
+    async function handleRefreshToken() {
+      try {
+        const authData = await refreshTokenApi(refreshToken.value);
+        setTokens(authData.token);
+        return authData.token;
+      } catch (error) {
+        await logout();
+        throw error;
+      }
+    }
+
+    async function hydrate() {
+      if (token.value) {
+        await fetchMyInfo();
+      }
+    }
+
+    return {
+      token,
+      refreshToken,
+      user,
+      isProfileLoading,
+      isAuthenticated,
+      userRoles,
+      isAdmin,
+      login,
+      register,
+      logout,
+      fetchMyInfo,
+      handleRefreshToken,
+      setTokens,
+      hydrate
+    };
   },
-  persist: {
-    storage: localStorage,
-    paths: ['token', 'expiryTime'],
-  },
-});
+  {
+    persist: {
+      paths: ['token', 'refreshToken']
+    }
+  }
+);

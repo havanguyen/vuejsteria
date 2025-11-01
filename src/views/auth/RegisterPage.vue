@@ -1,262 +1,145 @@
-<script setup>
-import { ref, computed } from 'vue';
-import { useRouter, RouterLink } from 'vue-router';
-import { useForm, useField } from 'vee-validate';
-import { toTypedSchema } from '@vee-validate/zod';
-import { registerSchema } from '@/validations/authSchema';
-import { registerApi } from '@/api/authApi';
-import { format, parseISO } from 'date-fns';
-
-const router = useRouter();
-
-const serverError = ref(null);
-const serverSuccess = ref(null);
-const isSubmitting = ref(false);
-const showPassword = ref(false);
-const showConfirmPassword = ref(false);
-const dobMenu = ref(false);
-
-const { handleSubmit, errors } = useForm({
-  validationSchema: toTypedSchema(registerSchema),
-  initialValues: {
-    username: '',
-    password: '',
-    confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    dob: '',
-    city: '',
-  },
-});
-
-const { value: username } = useField('username');
-const { value: password } = useField('password');
-const { value: confirmPassword } = useField('confirmPassword');
-const { value: firstName } = useField('firstName');
-const { value: lastName } = useField('lastName');
-const { value: email } = useField('email');
-const { value: dob } = useField('dob');
-const { value: city } = useField('city');
-
-const dobForPicker = computed({
-  get: () => {
-    try {
-      return dob.value ? parseISO(dob.value) : null;
-    } catch {
-      return null;
-    }
-  },
-  set: (val) => {
-    dob.value = val ? format(val, 'yyyy-MM-dd') : '';
-    dobMenu.value = false;
-  }
-});
-
-const onSubmit = handleSubmit(async (values) => {
-  serverError.value = null;
-  serverSuccess.value = null;
-  isSubmitting.value = true;
-  try {
-    const { confirmPassword, ...userData } = values;
-    await registerApi(userData);
-    serverSuccess.value = 'Registration successful! Redirecting to login...';
-
-    setTimeout(() => {
-        router.push({ name: 'Login' });
-    }, 2000);
-
-  } catch (err) {
-    console.error('Registration failed:', err);
-    serverError.value = err?.title || err?.message || 'Registration failed. Please try again.';
-  } finally {
-    isSubmitting.value = false;
-  }
-});
-</script>
-
 <template>
-  <v-container class="fill-height">
+  <v-container class="fill-height" fluid>
     <v-row align="center" justify="center">
-      <v-col cols="12" sm="10" md="8" lg="6">
-        <v-card class="pa-4 pa-md-8 elevation-2">
-          <v-card-title class="text-center text-h5 font-weight-bold mb-6">
-             <v-avatar color="primary" size="large" class="mb-4">
-              <v-icon icon="mdi-account-plus" />
-            </v-avatar>
-            <div>Create your Bookteria Account</div>
-          </v-card-title>
+      <v-col cols="12" sm="8" md="4">
+        <Transition name="fade" appear>
+          <v-card class="elevation-12" v-if="showForm">
+            <v-toolbar color="primary" dark flat>
+              <v-toolbar-title>Đăng ký</v-toolbar-title>
+            </v-toolbar>
+            <v-card-text>
+              <v-form @submit.prevent="onSubmit">
+                <v-slide-y-transition>
+                  <v-alert
+                    v-if="errorMessage"
+                    type="error"
+                    class="mb-4"
+                    density="compact"
+                    closable
+                    @click:close="errorMessage = ''"
+                  >
+                    {{ errorMessage }}
+                  </v-alert>
+                </v-slide-y-transition>
 
-          <v-card-text>
-            <v-snackbar
-              v-model="serverSuccess"
-              color="success"
-              timeout="2000"
-              location="top right"
-            >
-              {{ serverSuccess }}
-               <template v-slot:actions>
-                  <v-btn icon @click="serverSuccess = null"><v-icon>mdi-close</v-icon></v-btn>
-               </template>
-            </v-snackbar>
-            <v-alert
-              v-if="serverError"
-              type="error"
-              variant="tonal"
-              density="compact"
-              class="mb-4"
-            >
-              {{ serverError }}
-            </v-alert>
+                <v-text-field
+                  v-model="username.value.value"
+                  :error-messages="username.errorMessage.value"
+                  label="Tên đăng nhập"
+                  prepend-icon="mdi-account"
+                  type="text"
+                  variant="underlined"
+                ></v-text-field>
 
-            <v-form @submit.prevent="onSubmit">
-              <v-row>
-                 <v-col cols="12" md="6">
-                    <v-text-field
-                      v-model="firstName"
-                      label="First Name"
-                      prepend-inner-icon="mdi-account-outline"
-                      :error-messages="errors.firstName"
-                      :disabled="isSubmitting"
-                      class="mb-2"
-                      variant="outlined"
-                      density="comfortable"
-                    />
-                 </v-col>
-                 <v-col cols="12" md="6">
-                    <v-text-field
-                      v-model="lastName"
-                      label="Last Name"
-                      prepend-inner-icon="mdi-account-outline"
-                      :error-messages="errors.lastName"
-                      :disabled="isSubmitting"
-                      class="mb-2"
-                      variant="outlined"
-                      density="comfortable"
-                    />
-                 </v-col>
-                 <v-col cols="12">
-                   <v-text-field
-                      v-model="username"
-                      label="Username"
-                      prepend-inner-icon="mdi-account"
-                      :error-messages="errors.username"
-                      :disabled="isSubmitting"
-                      class="mb-2"
-                      variant="outlined"
-                      density="comfortable"
-                    />
-                 </v-col>
-                 <v-col cols="12">
-                   <v-text-field
-                      v-model="email"
-                      label="Email"
-                      prepend-inner-icon="mdi-email-outline"
-                      :error-messages="errors.email"
-                      :disabled="isSubmitting"
-                      class="mb-2"
-                      variant="outlined"
-                      density="comfortable"
-                      type="email"
-                    />
-                 </v-col>
-                 <v-col cols="12">
-                    <v-text-field
-                      v-model="password"
-                      label="Password"
-                      :type="showPassword ? 'text' : 'password'"
-                      prepend-inner-icon="mdi-lock-outline"
-                      :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                      @click:append-inner="showPassword = !showPassword"
-                      :error-messages="errors.password"
-                      :disabled="isSubmitting"
-                      class="mb-2"
-                      variant="outlined"
-                      density="comfortable"
-                    />
-                 </v-col>
-                 <v-col cols="12">
-                    <v-text-field
-                      v-model="confirmPassword"
-                      label="Confirm Password"
-                      :type="showConfirmPassword ? 'text' : 'password'"
-                      prepend-inner-icon="mdi-lock-check-outline"
-                      :append-inner-icon="showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                      @click:append-inner="showConfirmPassword = !showConfirmPassword"
-                      :error-messages="errors.confirmPassword"
-                      :disabled="isSubmitting"
-                      class="mb-2"
-                      variant="outlined"
-                      density="comfortable"
-                    />
-                 </v-col>
-                 <v-col cols="12" md="6">
-                     <v-menu
-                       v-model="dobMenu"
-                       :close-on-content-click="false"
-                       location="bottom"
-                     >
-                       <template v-slot:activator="{ props }">
-                         <v-text-field
-                           v-model="dob"
-                           label="Date of Birth"
-                           prepend-inner-icon="mdi-calendar"
-                           readonly
-                           v-bind="props"
-                           :error-messages="errors.dob"
-                           :disabled="isSubmitting"
-                           placeholder="YYYY-MM-DD"
-                           class="mb-2"
-                           variant="outlined"
-                           density="comfortable"
-                         />
-                       </template>
-                       <v-date-picker
-                         v-model="dobForPicker"
-                         show-adjacent-months
-                         hide-header
-                         color="primary"
-                       />
-                     </v-menu>
-                 </v-col>
-                 <v-col cols="12" md="6">
-                    <v-text-field
-                      v-model="city"
-                      label="City (Optional)"
-                      prepend-inner-icon="mdi-city-variant-outline"
-                      :error-messages="errors.city"
-                      :disabled="isSubmitting"
-                      class="mb-2"
-                      variant="outlined"
-                      density="comfortable"
-                    />
-                 </v-col>
-              </v-row>
+                <v-text-field
+                  v-model="email.value.value"
+                  :error-messages="email.errorMessage.value"
+                  label="Email"
+                  prepend-icon="mdi-email"
+                  type="email"
+                  variant="underlined"
+                ></v-text-field>
 
-              <v-btn
-                type="submit"
-                block
-                color="primary"
-                size="large"
-                :loading="isSubmitting"
-                :disabled="isSubmitting"
-                class="mt-6"
-                prepend-icon="mdi-account-plus-outline"
+                <v-text-field
+                  v-model="password.value.value"
+                  :error-messages="password.errorMessage.value"
+                  label="Mật khẩu"
+                  prepend-icon="mdi-lock"
+                  type="password"
+                  variant="underlined"
+                ></v-text-field>
+
+                <v-text-field
+                  v-model="confirmPassword.value.value"
+                  :error-messages="confirmPassword.errorMessage.value"
+                  label="Xác nhận mật khẩu"
+                  prepend-icon="mdi-lock-check"
+                  type="password"
+                  variant="underlined"
+                ></v-text-field>
+
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn
+                    type="submit"
+                    color="primary"
+                    :loading="isLoading"
+                    :disabled="isLoading"
+                  >
+                    Đăng ký
+                  </v-btn>
+                </v-card-actions>
+              </v-form>
+            </v-card-text>
+            <v-card-actions class="justify-center">
+              <span
+                >Đã có tài khoản?
+                <router-link to="/login">Đăng nhập</router-link></span
               >
-                Sign Up
-              </v-btn>
-            </v-form>
-          </v-card-text>
-
-           <v-divider class="my-3"></v-divider>
-
-           <v-card-actions class="d-flex justify-center px-4 pb-4">
-             <router-link :to="{ name: 'Login' }" class="text-body-2 text-decoration-none">
-                Already have an account? Sign In
-             </router-link>
-          </v-card-actions>
-        </v-card>
+            </v-card-actions>
+          </v-card>
+        </Transition>
       </v-col>
     </v-row>
   </v-container>
 </template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useField, useForm } from 'vee-validate';
+import { registerSchema } from '@/validations/authSchema';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
+
+const showForm = ref(false);
+const isLoading = ref(false);
+const errorMessage = ref('');
+
+const router = useRouter();
+const authStore = useAuthStore();
+const notificationStore = useNotificationStore();
+
+const { handleSubmit } = useForm({
+  validationSchema: registerSchema
+});
+
+const username = useField('username');
+const email = useField('email');
+const password = useField('password');
+const confirmPassword = useField('confirmPassword');
+
+const onSubmit = handleSubmit(async (values) => {
+  isLoading.value = true;
+  errorMessage.value = '';
+  try {
+    await authStore.register(values);
+    notificationStore.showSuccess('Đăng ký thành công! Vui lòng đăng nhập.');
+    router.push('/login');
+  } catch (error) {
+    const apiError = error.response?.data?.message || 'Lỗi không xác định';
+    errorMessage.value = apiError;
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+onMounted(() => {
+  showForm.value = true;
+});
+</script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+</style>
