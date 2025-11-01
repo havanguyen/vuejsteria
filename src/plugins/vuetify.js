@@ -8,8 +8,8 @@ import '@mdi/font/css/materialdesignicons.css';
 const bookteriaTheme = {
   dark: false,
   colors: {
-    background: '#f4f6f8',
-    surface: '#ffffff',
+    background: 'transparent',
+    surface: 'transparent',
     primary: '#0B57D0',
     'primary-darken-1': '#0A4CB8',
     secondary: '#f50057',
@@ -53,12 +53,16 @@ export default createVuetify({
     },
     VCard: {
       rounded: 'xl',
-      elevation: 0,
-      border: 'thin',
+      elevation: 4,
+      style: {
+        background: 'rgba(255, 255, 255, 0.4)',
+        backdropFilter: 'blur(10px) saturate(180%)',
+        webkitBackdropFilter: 'blur(10px) saturate(180%)',
+        border: '1px solid rgba(255, 255, 255, 0.125)',
+      },
     },
     VAppBar: {
       elevation: 0,
-      border: 'b-thin',
-    }
+    },
   },
 });

@@ -1,8 +1,17 @@
 <template>
-  <v-app-bar app color="primary" dark elevate-on-scroll>
+  <v-app-bar
+    app
+    color="transparent"
+    style="
+      backdrop-filter: blur(10px) saturate(180%);
+      -webkit-backdrop-filter: blur(10px) saturate(180%);
+      background: rgba(255, 255, 255, 0.3);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.125);
+    "
+  >
     <v-container class="d-flex align-center py-0">
       <v-toolbar-title
-        class="font-weight-bold"
+        class="font-weight-bold text-primary"
         style="cursor: pointer"
         @click="goToHome"
       >
@@ -12,14 +21,18 @@
 
       <v-spacer></v-spacer>
 
-      <v-btn :to="{ name: 'Home' }" text class="d-none d-sm-flex">
+      <v-btn :to="{ name: 'Home' }" text class="d-none d-sm-flex text-primary">
         <v-icon left>mdi-home</v-icon>
         Home
       </v-btn>
 
       <v-menu v-if="isAdmin" offset-y>
         <template v-slot:activator="{ props }">
-          <v-btn v-bind="props" text class="d-none d-sm-flex">
+          <v-btn
+            v-bind="props"
+            text
+            class="d-none d-sm-flex text-primary"
+          >
             <v-icon left>mdi-shield-account</v-icon>
             Admin
             <v-icon right>mdi-menu-down</v-icon>
@@ -35,8 +48,8 @@
       <v-spacer></v-spacer>
 
       <div v-if="!isAuthenticated">
-        <v-btn :to="{ name: 'Login' }" text> Login </v-btn>
-        <v-btn :to="{ name: 'Register' }" color="white" variant="outlined">
+        <v-btn :to="{ name: 'Login' }" text class="text-primary"> Login </v-btn>
+        <v-btn :to="{ name: 'Register' }" color="primary" variant="flat">
           Register
         </v-btn>
       </div>
@@ -44,7 +57,7 @@
       <div v-else>
         <v-menu offset-y>
           <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" text>
+            <v-btn v-bind="props" text class="text-primary">
               <v-avatar size="36" class="mr-2 elevation-1">
                 <v-img
                   :src="

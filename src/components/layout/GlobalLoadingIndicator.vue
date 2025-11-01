@@ -3,12 +3,14 @@
     :model-value="loadingStore.isLoading"
     class="align-center justify-center"
     persistent
-    scrim="true"
+    scrim="rgba(255, 255, 255, 0.3)"
+    style="backdrop-filter: blur(4px)"
   >
     <v-progress-circular
       indeterminate
       color="primary"
       size="64"
+      width="6"
     ></v-progress-circular>
   </v-overlay>
 </template>
