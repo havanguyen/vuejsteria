@@ -32,7 +32,8 @@ const editedItem = ref({
 const editedIndex = ref(-1);
 
 const deleteDialog = ref(false);
-const itemToDelete = ref(null);
+const itemToToggle = ref(null);
+const isSubmitting = ref(false);
 
 const headers = [
   { title: 'Avatar', key: 'profileResponse.avatarUrl', sortable: false, width: '100px' },
@@ -64,26 +65,65 @@ const fetchUsers = async () => {
 onMounted(fetchUsers);
 
 const editItem = (item) => {
-  editedIndex.value = users.value.indexOf(item);
+  editedIndex.value = users.value.findIndex((u) => u.id === item.id);
   editedItem.value = JSON.parse(JSON.stringify(item));
   setupFormValues(editedItem.value);
   dialog.value = true;
 };
 
-const confirmDeleteItem = (item) => {
-  itemToDelete.value = item;
+const confirmToggleActive = (item) => {
+  itemToToggle.value = item;
   deleteDialog.value = true;
 };
 
-const deleteItem = async () => {
-  if (!itemToDelete.value) return;
+const toggleActiveStatus = async () => {
+  if (!itemToToggle.value) return;
   loadingStore.showLoading();
+  
+  const isCurrentlyActive = itemToToggle.value.active;
+  const targetUserId = itemToToggle.value.id;
+  const index = users.value.findIndex((u) => u.id === targetUserId);
+
   try {
-    await deleteUserByAdminApi(itemToDelete.value.id);
-    users.value = users.value.filter((u) => u.id !== itemToDelete.value.id);
-    notificationStore.showSuccess('User deleted successfully.');
+    if (isCurrentlyActive) {
+      // 1. DEACTIVATE: Dùng DELETE API (API docs nói nó chuyển sang inactive)
+      await deleteUserByAdminApi(targetUserId);
+      
+      if (index !== -1) {
+        users.value[index].active = false;
+      }
+      notificationStore.showSuccess('User deactivated successfully.'); 
+      
+    } else {
+      // 2. REACTIVATE: Dùng PUT API (Cập nhật isActive: true)
+      
+      const fullUser = users.value[index];
+      
+      // Tạo payload cần thiết cho UserUpdateRequest (bao gồm các trường bắt buộc)
+      const updateData = {
+        firstName: fullUser.profileResponse?.firstName || '',
+        lastName: fullUser.profileResponse?.lastName || '',
+        email: fullUser.profileResponse?.email || '',
+        
+        roles: fullUser.roles.map(r => r.name), 
+        isActive: true, // <-- Đã đổi từ 'active' sang 'isActive'
+        
+        password: '', 
+        dob: fullUser.profileResponse?.dob ? fullUser.profileResponse.dob.split('T')[0] : null,
+        city: fullUser.profileResponse?.city || null,
+        avatarUrl: fullUser.profileResponse?.avatarUrl || null,
+      };
+      
+      const updatedUser = await updateUserByAdminApi(targetUserId, updateData);
+      
+      if (index !== -1) {
+        Object.assign(users.value[index], updatedUser);
+      }
+      notificationStore.showSuccess('User reactivated successfully.');
+    }
+    
   } catch (err) {
-    notificationStore.showError(err.message || 'Error deleting user.');
+    notificationStore.showError(err.message || (isCurrentlyActive ? 'Error deactivating user.' : 'Error reactivating user.'));
   } finally {
     closeDelete();
     loadingStore.hideLoading();
@@ -100,11 +140,10 @@ const close = () => {
 
 const closeDelete = () => {
   deleteDialog.value = false;
-  itemToDelete.value = null;
+  itemToToggle.value = null;
 };
 
 const serverError = ref(null);
-const isSubmitting = ref(false);
 const dobMenu = ref(false);
 const showPassword = ref(false);
 const allRoles = ref(['USER', 'ADMIN']);
@@ -143,7 +182,7 @@ const adminUpdateUserSchema = z.object({
     .optional()
     .nullable(),
   roles: z.array(z.string()).min(1, 'At least one role is required'),
-  active: z.boolean(),
+  active: z.boolean(), // Vẫn giữ active ở FE để binding với v-switch
   avatarUrl: z
     .string()
     .url('Must be a valid URL')
@@ -207,9 +246,17 @@ const onSubmit = handleSubmit(async (values) => {
   loadingStore.showLoading();
   try {
     const updateData = { ...values };
+    
+    // ÁNH XẠ: Đổi 'active' thành 'isActive' cho payload backend
+    if (updateData.active !== undefined) {
+        updateData.isActive = updateData.active;
+        delete updateData.active;
+    }
+    
     if (!updateData.password) {
       delete updateData.password;
     }
+    // Xóa/Null các trường chuỗi rỗng
     if (updateData.dob === '') {
       updateData.dob = null;
     }
@@ -225,6 +272,7 @@ const onSubmit = handleSubmit(async (values) => {
       updateData
     );
 
+    // Cập nhật đối tượng trong danh sách
     Object.assign(users.value[editedIndex.value], updatedUser);
     notificationStore.showSuccess('User updated successfully!');
     close();
@@ -351,7 +399,7 @@ const updateDobField = (newDate) => {
             <div class="d-flex justify-end">
               <v-btn
                 variant="tonal"
-                color="blue-darken-1"
+                color="primary"
                 size="small"
                 class="me-2"
                 @click="editItem(item)"
@@ -362,13 +410,13 @@ const updateDobField = (newDate) => {
               </v-btn>
               <v-btn
                 variant="tonal"
-                color="red-darken-1"
+                :color="item.active ? 'red-darken-1' : 'success'"
                 size="small"
-                @click="confirmDeleteItem(item)"
-                prepend-icon="mdi-delete"
+                @click="confirmToggleActive(item)"
+                :prepend-icon="item.active ? 'mdi-power-off' : 'mdi-power-on'"
               >
-                Delete
-                <v-tooltip activator="parent" location="top">Delete</v-tooltip>
+                {{ item.active ? 'Deactivate' : 'Reactivate' }}
+                <v-tooltip activator="parent" location="top">{{ item.active ? 'Deactivate' : 'Reactivate' }}</v-tooltip>
               </v-btn>
             </div>
           </template>
@@ -596,21 +644,25 @@ const updateDobField = (newDate) => {
     <v-dialog v-model="deleteDialog" max-width="450px">
       <v-card class="pa-2">
         <v-card-title class="text-h5"
-          >Confirm Deletion</v-card-title
+          >Confirm Status Change</v-card-title
         >
         <v-card-text>
-          Are you sure you want to delete user
-          <strong>{{ itemToDelete?.username }}</strong
-          >? This action cannot be undone.
+          Are you sure you want to change the status of user
+          <strong>{{ itemToToggle?.username }}</strong
+          > to **{{ itemToToggle?.active ? 'Inactive' : 'Active' }}**?
         </v-card-text>
         <v-card-actions class="pa-4">
           <v-spacer></v-spacer>
           <v-btn color="blue-darken-1" variant="text" @click="closeDelete"
             >Cancel</v-btn
           >
-          <v-btn color="red-darken-1" variant="flat" @click="deleteItem"
-            >Delete</v-btn
+          <v-btn 
+            :color="itemToToggle?.active ? 'red-darken-1' : 'success'" 
+            variant="flat" 
+            @click="toggleActiveStatus"
           >
+            Confirm {{ itemToToggle?.active ? 'Deactivation' : 'Reactivation' }}
+          </v-btn>
           <v-spacer></v-spacer>
         </v-card-actions>
       </v-card>

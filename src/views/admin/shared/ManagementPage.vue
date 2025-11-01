@@ -28,6 +28,7 @@
           hide-details
           class="mb-4"
           style="max-width: 400px"
+          clearable
         ></v-text-field>
 
         <v-data-table-server
@@ -36,7 +37,6 @@
           :items="items"
           :items-length="pagination.totalElements"
           :loading="loading"
-          :search="search"
           item-value="id"
           class="elevation-0 border rounded-lg data-table-hover"
           @update:options="loadItems"
@@ -212,6 +212,8 @@ const editedItem = ref(JSON.parse(JSON.stringify(props.defaultItem)));
 const itemToDelete = ref(null);
 const isSubmitting = ref(false);
 
+let searchDebounce = null;
+
 const dialogTitle = computed(() =>
   editedItem.value.id ? `Edit ${props.title}` : `Create ${props.title}`
 );
@@ -228,20 +230,36 @@ const loadItems = async ({ page, itemsPerPage, sortBy }) => {
     const sort = sortBy.length
       ? `${sortBy[0].key},${sortBy[0].order}`
       : 'id,desc';
-    const data = await props.api.list(page - 1, itemsPerPage, sort);
+
+    let responseData;
+
+    if (search.value && props.api.search) {
+      responseData = await props.api.search(
+        search.value,
+        page - 1,
+        itemsPerPage
+      );
+    } else {
+      responseData = await props.api.list(page - 1, itemsPerPage, sort);
+    }
+
+    const data = responseData;
 
     if (data && typeof data.content !== 'undefined') {
       items.value = data.content;
       pagination.value.totalElements = data.totalElements;
       pagination.value.totalPages = data.totalPages;
+      pagination.value.page = data.pageable?.pageNumber + 1 || page;
     } else if (Array.isArray(data)) {
       items.value = data;
       pagination.value.totalElements = data.length;
       pagination.value.totalPages = 1;
+      pagination.value.page = 1;
     } else {
       items.value = [];
       pagination.value.totalElements = 0;
       pagination.value.totalPages = 1;
+      pagination.value.page = 1;
     }
   } catch (error) {
     notificationStore.showError(`Error loading ${props.title}: ${error.message}`);
@@ -251,6 +269,17 @@ const loadItems = async ({ page, itemsPerPage, sortBy }) => {
     loading.value = false;
   }
 };
+
+watch(search, (newValue) => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    loadItems({
+      page: 1,
+      itemsPerPage: pagination.value.size,
+      sortBy: [],
+    });
+  }, 300);
+});
 
 const openDialog = async (item = null) => {
   isSubmitting.value = true;

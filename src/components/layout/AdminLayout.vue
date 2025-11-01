@@ -6,9 +6,8 @@
       permanent
       @click="rail = false"
       location="left"
-      color="grey-darken-4"
-      image="https://cdn.vuetifyjs.com/images/backgrounds/bg-2.jpg"
-      class="admin-drawer"
+      color="transparent"
+      class="admin-drawer glass-sidebar"
     >
       <v-list-item
         :prepend-avatar="
@@ -16,12 +15,11 @@
           'https://via.placeholder.com/150/E0E0E0/FFFFFF?text=No+Avatar'
         "
         :title="user?.profileResponse?.firstName || user?.username"
-        subtitle="Administrator"
         nav
-        class="admin-user-card"
+        class="admin-user-card pa-3"
       >
         <template v-slot:prepend>
-          <v-avatar color="grey-darken-3" class="avatar-glow">
+          <v-avatar color="primary" class="avatar-glow">
             <v-img
               :src="
                 user?.profileResponse?.avatarUrl ||
@@ -46,7 +44,7 @@
 
       <v-divider></v-divider>
 
-      <v-list density="compact" nav class="admin-nav-list">
+      <v-list density="compact" nav class="admin-nav-list pa-2">
         <v-list-item
           v-for="item in navItems"
           :key="item.title"
@@ -64,6 +62,7 @@
             block
             @click="handleLogout"
             color="red-darken-3"
+            variant="tonal"
             prepend-icon="mdi-logout"
             :class="{ 'justify-start': !rail, 'justify-center': rail }"
           >
@@ -76,14 +75,21 @@
     <v-app-bar
       app
       color="white"
-      elevation="2"
+      elevation="0"
       density="default"
       class="admin-app-bar"
     >
       <v-app-bar-nav-icon @click.stop="rail = !rail"></v-app-bar-nav-icon>
-      <v-toolbar-title class="text-grey-darken-3 font-weight-bold">
-        Bookteria Admin
-      </v-toolbar-title>
+
+      <v-breadcrumbs
+        :items="breadcrumbs"
+        class="pa-0 ma-0 ml-2 admin-breadcrumbs"
+      >
+        <template v-slot:divider>
+          <v-icon icon="mdi-chevron-right"></v-icon>
+        </template>
+      </v-breadcrumbs>
+
       <v-spacer></v-spacer>
 
       <v-btn icon :to="{ name: 'Home' }">
@@ -92,23 +98,30 @@
       </v-btn>
 
       <v-menu offset-y>
-        <template v-slot:activator="{ props }">
-          <v-btn v-bind="props" text class="pa-1">
-            <v-avatar size="36" class="mr-2 elevation-1">
-              <v-img
-                :src="
-                  user?.profileResponse?.avatarUrl ||
-                  'https://via.placeholder.com/150'
-                "
-                alt="Avatar"
-                cover
-              ></v-img>
-            </v-avatar>
-            <span class="d-none d-sm-inline text-grey-darken-2">
-              {{ user?.profileResponse?.firstName || user?.username }}
-            </span>
-            <v-icon right color="grey-darken-1">mdi-menu-down</v-icon>
-          </v-btn>
+        <template v-slot:activator="{ props: menuProps }">
+          <v-hover v-slot="{ isHovering, props: hoverProps }">
+            <v-btn
+              v-bind="{ ...menuProps, ...hoverProps }"
+              text
+              class="pa-1 user-menu-btn"
+              :elevation="isHovering ? 2 : 0"
+            >
+              <v-avatar size="36" class="mr-2 elevation-1">
+                <v-img
+                  :src="
+                    user?.profileResponse?.avatarUrl ||
+                    'https://via.placeholder.com/150'
+                  "
+                  alt="Avatar"
+                  cover
+                ></v-img>
+              </v-avatar>
+              <span class="d-none d-sm-inline text-grey-darken-3">
+                {{ user?.profileResponse?.firstName || user?.username }}
+              </span>
+              <v-icon right color="grey-darken-1">mdi-menu-down</v-icon>
+            </v-btn>
+          </v-hover>
         </template>
 
         <v-list dense>
@@ -143,13 +156,14 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { storeToRefs } from 'pinia';
 
 const drawer = ref(true);
 const rail = ref(false);
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 
@@ -192,6 +206,25 @@ const navItems = ref([
   },
 ]);
 
+const breadcrumbs = computed(() => {
+  const items = [
+    {
+      title: 'Admin',
+      to: { name: 'AdminDashboard' },
+      disabled: false,
+    },
+  ];
+
+  if (route.meta.title && route.name !== 'AdminDashboard') {
+    items.push({
+      title: route.meta.title,
+      to: { name: route.name },
+      disabled: true,
+    });
+  }
+  return items;
+});
+
 const handleLogout = () => {
   authStore.logout();
   router.push({ name: 'Login' });
@@ -203,42 +236,75 @@ const handleLogout = () => {
   margin-inline-end: 16px !important;
 }
 
+.glass-sidebar {
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  background: rgba(255, 255, 255, 0.5) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-sidebar .v-list-item,
+.glass-sidebar .v-list-item .v-icon,
+.glass-sidebar .v-list-item-title {
+  color: #333 !important;
+}
+
 .admin-nav-list .v-list-item {
   transition: all 0.2s ease-in-out;
+  margin: 4px 8px;
+  border-radius: 8px;
 }
 
 .admin-nav-list .v-list-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.05);
+  transform: translateX(4px);
 }
 
 .admin-nav-active {
-  background-color: rgba(69, 139, 246, 0.2) !important;
-  border-left: 4px solid #458bf6;
-  color: #ffffff !important;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--v-theme-primary), 0.2),
+    rgba(var(--v-theme-primary), 0.05) 80%
+  ) !important;
+  border-left: 4px solid rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-primary)) !important;
+  font-weight: 600;
 }
 
 .admin-nav-active .v-icon {
-  color: #ffffff !important;
+  color: rgb(var(--v-theme-primary)) !important;
 }
 
 .admin-user-card {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .admin-user-card .avatar-glow {
-  box-shadow:
-    0 0 10px rgba(255, 255, 255, 0.5),
-    0 0 20px rgba(69, 139, 246, 0.3);
+  border: 2px solid rgb(var(--v-theme-primary));
+  box-shadow: 0 0 15px rgba(var(--v-theme-primary), 0.5);
 }
 
 .admin-main-bg {
-  background-color: #f4f7f6;
+  background-color: #fef5f7;
 }
 
 .admin-app-bar {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12) !important;
-  box-shadow:
-    0 2px 4px -1px rgba(0, 0, 0, 0.06),
-    0 4px 5px 0 rgba(0, 0, 0, 0.04) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.admin-breadcrumbs .v-breadcrumbs-item,
+.admin-breadcrumbs .v-breadcrumbs-divider {
+  color: #555;
+  font-size: 1rem;
+}
+
+.admin-breadcrumbs .v-breadcrumbs-item--disabled {
+  color: #111;
+  font-weight: 600;
+}
+
+.user-menu-btn {
+  transition: all 0.2s ease-out;
+  border-radius: 8px;
 }
 </style>

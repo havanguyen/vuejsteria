@@ -200,6 +200,7 @@ import {
   getPublishersApi,
   getCategoriesApi,
 } from '@/api/productApi';
+import { searchProductsApi } from '@/api/searchApi';
 
 const headers = [
   { title: 'Cover', key: 'imageUrl', sortable: false, width: '100px' },
@@ -212,6 +213,7 @@ const headers = [
 
 const api = {
   list: getProductsApi,
+  search: searchProductsApi,
   create: createProductApi,
   update: updateProductApi,
   delete: deleteProductApi,
@@ -260,7 +262,7 @@ const productSchema = z.object({
   categoryIds: z.array(z.string()).optional(),
 });
 
-const { handleSubmit, errors, setValues, resetForm } = useForm({
+const { errors, setValues, resetForm, validate, values } = useForm({
   validationSchema: toTypedSchema(productSchema),
   initialValues: defaultItem.value,
 });
@@ -313,12 +315,12 @@ const onBeforeOpenDialog = async () => {
 const onSave = async (editedItem, showError) => {
   formError.value = null;
 
-  const result = await handleSubmit();
-  if (!result.valid) {
+  const { valid } = await validate();
+  if (!valid) {
     return false;
   }
-
-  const payload = { ...result.values };
+  
+  const payload = { ...values };
 
   payload.publicationDate = payload.publicationDate || null;
   payload.pageCount = payload.pageCount || 0;

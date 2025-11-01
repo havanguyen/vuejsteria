@@ -111,7 +111,7 @@ const authorSchema = z.object({
     .or(z.literal('')),
 });
 
-const { handleSubmit, errors, setValues, resetForm } = useForm({
+const { errors, setValues, resetForm, validate, values } = useForm({
   validationSchema: toTypedSchema(authorSchema),
   initialValues: defaultItem.value,
 });
@@ -130,12 +130,12 @@ const handleOpenDialog = (item) => {
 
 const onSave = async (editedItem, showError) => {
   formError.value = null;
-  const result = await handleSubmit();
-  if (!result.valid) {
+  const { valid } = await validate();
+  if (!valid) {
     return false;
   }
 
-  const payload = { ...result.values };
+  const payload = { ...values };
 
   try {
     if (editedItem.id) {

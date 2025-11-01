@@ -37,7 +37,7 @@
 </template>
 
 <script setup>
-import { ref, watch, inject } from 'vue';
+import { ref } from 'vue';
 import ManagementPage from './shared/ManagementPage.vue';
 import { useForm, useField } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -73,7 +73,7 @@ const publisherSchema = z.object({
   name: z.string().min(1, 'Publisher name is required'),
 });
 
-const { handleSubmit, errors, setValues, resetForm } = useForm({
+const { errors, setValues, resetForm, validate, values } = useForm({
   validationSchema: toTypedSchema(publisherSchema),
   initialValues: defaultItem.value,
 });
@@ -90,12 +90,12 @@ const handleOpenDialog = (item) => {
 
 const onSave = async (editedItem, showError) => {
   formError.value = null;
-  const result = await handleSubmit();
-  if (!result.valid) {
+  const { valid } = await validate();
+  if (!valid) {
     return false;
   }
 
-  const payload = { ...result.values };
+  const payload = { ...values };
 
   try {
     if (editedItem.id) {

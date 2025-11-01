@@ -9,10 +9,6 @@
     :onSave="onSave"
     :onOpenDialog="handleOpenDialog"
   >
-    <template #item.parentCategory="{ item }">
-      {{ item.parentCategory?.name || 'N/A' }}
-    </template>
-
     <template #form="{ editedItem, isSubmitting }">
       <v-form>
         <v-alert
@@ -51,7 +47,7 @@
 </template>
 
 <script setup>
-import { ref, watch, inject } from 'vue';
+import { ref } from 'vue';
 import ManagementPage from './shared/ManagementPage.vue';
 import { useForm, useField } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -67,7 +63,6 @@ const headers = [
   { title: 'ID', key: 'id', sortable: true, width: '300px' },
   { title: 'Category Name', key: 'name', sortable: true },
   { title: 'Slug', key: 'slug', sortable: true },
-  { title: 'Parent Category', key: 'parentCategory', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
 ];
 
@@ -93,7 +88,7 @@ const categorySchema = z.object({
   parentCategoryId: z.string().nullable().optional(),
 });
 
-const { handleSubmit, errors, setValues, resetForm } = useForm({
+const { errors, setValues, resetForm, validate, values } = useForm({
   validationSchema: toTypedSchema(categorySchema),
   initialValues: defaultItem.value,
 });
@@ -115,12 +110,12 @@ const handleOpenDialog = (item) => {
 
 const onSave = async (editedItem, showError) => {
   formError.value = null;
-  const result = await handleSubmit();
-  if (!result.valid) {
+  const { valid } = await validate();
+  if (!valid) {
     return false;
   }
 
-  const payload = { ...result.values };
+  const payload = { ...values };
 
   try {
     if (editedItem.id) {
