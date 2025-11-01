@@ -24,8 +24,11 @@ export default {
   install: () => {
     axiosInstance.interceptors.request.use(
       (config) => {
-        const loadingStore = useLoadingStore();
-        loadingStore.showLoading();
+        // NÂNG CẤP: Chỉ show loading nếu request không phải là 'silent'
+        if (!config.silent) {
+          const loadingStore = useLoadingStore();
+          loadingStore.showLoading();
+        }
 
         const authStore = useAuthStore();
         const token = authStore.token;
@@ -35,25 +38,35 @@ export default {
         return config;
       },
       (error) => {
-        const loadingStore = useLoadingStore();
-        loadingStore.hideLoading();
+        // NÂNG CẤP: Chỉ hide loading nếu request gốc không 'silent'
+        if (!error.config || !error.config.silent) {
+          const loadingStore = useLoadingStore();
+          loadingStore.hideLoading();
+        }
         return Promise.reject(error);
       }
     );
 
     axiosInstance.interceptors.response.use(
       (response) => {
-        const loadingStore = useLoadingStore();
-        loadingStore.hideLoading();
+        // NÂNG CẤP: Chỉ hide loading nếu request không 'silent'
+        if (!response.config.silent) {
+          const loadingStore = useLoadingStore();
+          loadingStore.hideLoading();
+        }
         return response;
       },
       async (error) => {
-        const loadingStore = useLoadingStore();
-        loadingStore.hideLoading();
+        const originalRequest = error.config;
+
+        // NÂNG CẤP: Chỉ hide loading nếu request không 'silent'
+        if (originalRequest && !originalRequest.silent) {
+          const loadingStore = useLoadingStore();
+          loadingStore.hideLoading();
+        }
 
         const notificationStore = useNotificationStore();
         const authStore = useAuthStore();
-        const originalRequest = error.config;
 
         if (error.response?.status === 401 && !originalRequest._retry) {
           if (isRefreshing) {
@@ -97,7 +110,11 @@ export default {
         if (error.response?.status !== 401) {
           const apiError =
             error.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại';
-          notificationStore.showError(apiError);
+          
+          // NÂNG CẤP: Chỉ hiện lỗi nếu request không 'silent'
+          if (originalRequest && !originalRequest.silent) {
+            notificationStore.showError(apiError);
+          }
         }
 
         return Promise.reject(error);

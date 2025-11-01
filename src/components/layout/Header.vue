@@ -21,6 +21,39 @@
 
       <v-spacer></v-spacer>
 
+      <v-autocomplete
+        v-model="searchQuery"
+        :items="searchResults"
+        :loading="isSearching"
+        @update:search="debouncedSearch"
+        item-title="title"
+        item-value="id"
+        label="Tìm kiếm sách, tác giả..."
+        density="comfortable"
+        prepend-inner-icon="mdi-magnify"
+        hide-no-data
+        hide-details
+        clearable
+        style="max-width: 500px"
+        class="mx-4"
+        @keydown.enter="goToSearchPage"
+        
+        variant="solo"
+        bg-color="rgba(255, 255, 255, 0.75)"
+        flat
+        rounded="lg"
+        auto-select-first
+      >
+        <template v-slot:item="{ props, item }">
+          <v-list-item
+            v-bind="props"
+            :prepend-avatar="item.raw.imageUrl"
+            :title="item.raw.title"
+            :subtitle="item.raw.authorName"
+            @click="goToProductPage(item.raw.id)"
+          ></v-list-item>
+        </template>
+      </v-autocomplete>
       <v-btn :to="{ name: 'Home' }" text class="d-none d-sm-flex text-primary">
         <v-icon left>mdi-home</v-icon>
         Home
@@ -28,11 +61,7 @@
 
       <v-menu v-if="isAdmin" offset-y>
         <template v-slot:activator="{ props }">
-          <v-btn
-            v-bind="props"
-            text
-            class="d-none d-sm-flex text-primary"
-          >
+          <v-btn v-bind="props" text class="d-none d-sm-flex text-primary">
             <v-icon left>mdi-shield-account</v-icon>
             Admin
             <v-icon right>mdi-menu-down</v-icon>
@@ -101,14 +130,20 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { searchProductsApi } from '@/api/searchApi';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
+
+const searchQuery = ref(null);
+const searchResults = ref([]);
+const isSearching = ref(false);
+let debounceTimer = null;
 
 const goToHome = () => {
   router.push({ name: 'Home' });
@@ -116,5 +151,50 @@ const goToHome = () => {
 
 const handleLogout = () => {
   authStore.logout();
+};
+
+const debouncedSearch = (query) => {
+  if (!query || query.length < 2) {
+    searchResults.value = [];
+    return;
+  }
+
+  isSearching.value = true;
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(async () => {
+    try {
+      const data = await searchProductsApi(query, 0, 7);
+      searchResults.value = data.content;
+    } catch (error) {
+      console.error(error);
+      searchResults.value = [];
+    } finally {
+      isSearching.value = false;
+    }
+  }, 300);
+};
+
+const goToSearchPage = () => {
+  const queryValue =
+    typeof searchQuery.value === 'object'
+      ? searchQuery.value.title
+      : searchQuery.value;
+  if (queryValue) {
+    router.push({
+      name: 'Search',
+      query: { q: queryValue }
+    });
+    searchQuery.value = null;
+    searchResults.value = [];
+  }
+};
+
+const goToProductPage = (id) => {
+  router.push({
+    name: 'ProductDetail',
+    params: { id: id }
+  });
+  searchQuery.value = null;
+  searchResults.value = [];
 };
 </script>
