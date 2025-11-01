@@ -9,7 +9,6 @@ import {
   updateUserByAdminApi,
   deleteUserByAdminApi,
 } from '@/api/userApi';
-import { uploadImageApi } from '@/api/fileApi';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useLoadingStore } from '@/stores/useLoadingStore';
 import ImageUploader from './shared/ImageUploader.vue';
@@ -20,10 +19,11 @@ const loadingStore = useLoadingStore();
 const users = ref([]);
 const loading = ref(true);
 const error = ref(null);
+const search = ref('');
 
 const dialog = ref(false);
 const dialogTitle = computed(() =>
-  editedItem.value.id ? 'Sửa thông tin User' : 'Tạo User'
+  editedItem.value.id ? 'Edit User' : 'Create User'
 );
 const editedItem = ref({
   profileResponse: {},
@@ -35,12 +35,18 @@ const deleteDialog = ref(false);
 const itemToDelete = ref(null);
 
 const headers = [
-  { title: 'Họ tên', key: 'profileResponse.firstName' },
+  { title: 'Avatar', key: 'profileResponse.avatarUrl', sortable: false, width: '100px' },
+  { title: 'Full Name', key: 'profileResponse.firstName' },
   { title: 'Email', key: 'profileResponse.email', sortable: false },
-  { title: 'Trạng thái', key: 'active', sortable: true },
-  { title: 'Vai trò', key: 'roles', sortable: false },
+  { title: 'Status', key: 'active', sortable: true },
+  { title: 'Roles', key: 'roles', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
 ];
+
+const getFullAvatarUrl = (url) => {
+  if (!url) return 'https://via.placeholder.com/40';
+  return url.startsWith('http') ? url : `${import.meta.env.VITE_API_BASE_URL}/${url}`;
+};
 
 const fetchUsers = async () => {
   loading.value = true;
@@ -75,9 +81,9 @@ const deleteItem = async () => {
   try {
     await deleteUserByAdminApi(itemToDelete.value.id);
     users.value = users.value.filter((u) => u.id !== itemToDelete.value.id);
-    notificationStore.showSuccess('User đã được xóa.');
+    notificationStore.showSuccess('User deleted successfully.');
   } catch (err) {
-    notificationStore.showError(err.message || 'Lỗi khi xóa user.');
+    notificationStore.showError(err.message || 'Error deleting user.');
   } finally {
     closeDelete();
     loadingStore.hideLoading();
@@ -99,7 +105,6 @@ const closeDelete = () => {
 
 const serverError = ref(null);
 const isSubmitting = ref(false);
-const isUploading = ref(false);
 const dobMenu = ref(false);
 const showPassword = ref(false);
 const allRoles = ref(['USER', 'ADMIN']);
@@ -257,25 +262,52 @@ const updateDobField = (newDate) => {
           {{ error }}
         </v-alert>
 
+        <v-text-field
+          v-model="search"
+          label="Search..."
+          prepend-inner-icon="mdi-magnify"
+          variant="outlined"
+          density="comfortable"
+          hide-details
+          class="mb-4"
+          style="max-width: 400px"
+        ></v-text-field>
+
         <v-data-table
           :headers="headers"
           :items="users"
           :loading="loading"
+          :search="search"
           item-value="id"
           class="elevation-0 border rounded-lg data-table-hover"
           items-per-page="10"
           hover
         >
+          <template v-slot:[`item.profileResponse.avatarUrl`]="{ item }">
+            <v-avatar size="40" class="my-2" rounded="lg">
+              <v-img
+                :src="getFullAvatarUrl(item.profileResponse?.avatarUrl)"
+                alt="Avatar"
+                cover
+              >
+                <template v-slot:placeholder>
+                  <v-icon>mdi-account</v-icon>
+                </template>
+              </v-img>
+              <v-tooltip activator="parent" location="end">
+                <v-img
+                  :src="getFullAvatarUrl(item.profileResponse?.avatarUrl)"
+                  height="150"
+                  width="150"
+                  contain
+                  alt="Avatar preview"
+                ></v-img>
+              </v-tooltip>
+            </v-avatar>
+          </template>
+
           <template v-slot:item.profileResponse\.firstName="{ item }">
             <div class="d-flex align-center py-2">
-              <v-avatar size="36" class="mr-3">
-                <v-img
-                  :src="
-                    item.profileResponse?.avatarUrl ||
-                    'https://via.placeholder.com/40'
-                  "
-                />
-              </v-avatar>
               <div>
                 <div class="font-weight-medium">
                   {{ item.profileResponse?.firstName || '' }}
@@ -325,8 +357,8 @@ const updateDobField = (newDate) => {
                 @click="editItem(item)"
                 prepend-icon="mdi-pencil"
               >
-                Sửa
-                <v-tooltip activator="parent" location="top">Sửa</v-tooltip>
+                Edit
+                <v-tooltip activator="parent" location="top">Edit</v-tooltip>
               </v-btn>
               <v-btn
                 variant="tonal"
@@ -335,8 +367,8 @@ const updateDobField = (newDate) => {
                 @click="confirmDeleteItem(item)"
                 prepend-icon="mdi-delete"
               >
-                Xóa
-                <v-tooltip activator="parent" location="top">Xóa</v-tooltip>
+                Delete
+                <v-tooltip activator="parent" location="top">Delete</v-tooltip>
               </v-btn>
             </div>
           </template>
@@ -545,16 +577,16 @@ const updateDobField = (newDate) => {
               @click="close"
               :disabled="isSubmitting"
             >
-              Hủy
+              Cancel
             </v-btn>
             <v-btn
               type="submit"
               color="primary"
               :loading="isSubmitting"
-              :disabled="isSubmitting || isUploading"
+              :disabled="isSubmitting"
               variant="flat"
             >
-              Lưu thay đổi
+              Save Changes
             </v-btn>
           </v-card-actions>
         </v-card>
@@ -564,20 +596,20 @@ const updateDobField = (newDate) => {
     <v-dialog v-model="deleteDialog" max-width="450px">
       <v-card class="pa-2">
         <v-card-title class="text-h5"
-          >Xác nhận xóa</v-card-title
+          >Confirm Deletion</v-card-title
         >
         <v-card-text>
-          Bạn có chắc chắn muốn xóa user
+          Are you sure you want to delete user
           <strong>{{ itemToDelete?.username }}</strong
-          >? Thao tác này không thể hoàn tác.
+          >? This action cannot be undone.
         </v-card-text>
         <v-card-actions class="pa-4">
           <v-spacer></v-spacer>
           <v-btn color="blue-darken-1" variant="text" @click="closeDelete"
-            >Hủy</v-btn
+            >Cancel</v-btn
           >
           <v-btn color="red-darken-1" variant="flat" @click="deleteItem"
-            >Xóa</v-btn
+            >Delete</v-btn
           >
           <v-spacer></v-spacer>
         </v-card-actions>

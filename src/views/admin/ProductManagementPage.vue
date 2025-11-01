@@ -1,6 +1,6 @@
 <template>
   <ManagementPage
-    title="Sản phẩm"
+    title="Products"
     icon="mdi-book-open-page-variant"
     :headers="headers"
     :api="api"
@@ -44,7 +44,7 @@
     </template>
 
     <template #form="{ editedItem, isSubmitting }">
-      <v-form @submit.prevent="onSave(editedItem)">
+      <v-form>
         <v-alert
           v-if="formError"
           type="error"
@@ -59,7 +59,7 @@
         <v-row>
           <v-col cols="12" md="4">
             <ImageUploader
-              label="Ảnh bìa sản phẩm"
+              label="Book Cover"
               v-model="imageUrl"
               :aspectRatio="3 / 4"
               placeholderIcon="mdi-book"
@@ -69,7 +69,7 @@
             <v-text-field
               v-model="title"
               :error-messages="errors.title"
-              label="Tên sách"
+              label="Book Title"
               variant="outlined"
               density="comfortable"
               :disabled="isSubmitting"
@@ -85,7 +85,7 @@
             <v-textarea
               v-model="description"
               :error-messages="errors.description"
-              label="Mô tả"
+              label="Description"
               variant="outlined"
               density="comfortable"
               :disabled="isSubmitting"
@@ -104,7 +104,7 @@
               item-title="name"
               item-value="id"
               :error-messages="errors.authorId"
-              label="Tác giả"
+              label="Author"
               variant="outlined"
               density="comfortable"
               :disabled="isSubmitting"
@@ -118,7 +118,7 @@
               item-title="name"
               item-value="id"
               :error-messages="errors.publisherId"
-              label="Nhà xuất bản"
+              label="Publisher"
               variant="outlined"
               density="comfortable"
               :disabled="isSubmitting"
@@ -129,7 +129,7 @@
             <v-text-field
               v-model="publicationDate"
               :error-messages="errors.publicationDate"
-              label="Ngày xuất bản"
+              label="Publication Date"
               type="date"
               variant="outlined"
               density="comfortable"
@@ -143,7 +143,7 @@
             <v-text-field
               v-model.number="basePrice"
               :error-messages="errors.basePrice"
-              label="Giá gốc"
+              label="Base Price"
               type="number"
               variant="outlined"
               density="comfortable"
@@ -155,7 +155,7 @@
             <v-text-field
               v-model.number="pageCount"
               :error-messages="errors.pageCount"
-              label="Số trang"
+              label="Page Count"
               type="number"
               variant="outlined"
               density="comfortable"
@@ -170,7 +170,7 @@
           item-title="name"
           item-value="id"
           :error-messages="errors.categoryIds"
-          label="Danh mục"
+          label="Categories"
           variant="outlined"
           density="comfortable"
           :disabled="isSubmitting"
@@ -202,11 +202,11 @@ import {
 } from '@/api/productApi';
 
 const headers = [
-  { title: 'Ảnh bìa', key: 'imageUrl', sortable: false, width: '100px' },
-  { title: 'Tên sách', key: 'title', sortable: true },
-  { title: 'Tác giả', key: 'author', sortable: true },
-  { title: 'NXB', key: 'publisher', sortable: true },
-  { title: 'Giá', key: 'basePrice', sortable: true },
+  { title: 'Cover', key: 'imageUrl', sortable: false, width: '100px' },
+  { title: 'Title', key: 'title', sortable: true },
+  { title: 'Author', key: 'author', sortable: true },
+  { title: 'Publisher', key: 'publisher', sortable: true },
+  { title: 'Price', key: 'basePrice', sortable: true },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
 ];
 
@@ -239,24 +239,24 @@ const categoryList = ref([]);
 const loadingDependencies = ref(false);
 
 const productSchema = z.object({
-  title: z.string().min(1, 'Tên sách là bắt buộc'),
+  title: z.string().min(1, 'Book title is required'),
   isbn: z.string().optional(),
   description: z.string().optional(),
   imageUrl: z
     .string()
-    .url('URL hình ảnh không hợp lệ')
+    .url('Invalid image URL')
     .optional()
     .nullable()
     .or(z.literal('')),
-  authorId: z.string().min(1, 'Tác giả là bắt buộc'),
-  publisherId: z.string().min(1, 'NXB là bắt buộc'),
+  authorId: z.string().min(1, 'Author is required'),
+  publisherId: z.string().min(1, 'Publisher is required'),
   publicationDate: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Định dạng YYYY-MM-DD')
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be in YYYY-MM-DD format')
     .optional()
     .nullable(),
-  pageCount: z.number().int().min(0, 'Số trang phải >= 0').optional().nullable(),
-  basePrice: z.number().min(0, 'Giá phải >= 0'),
+  pageCount: z.number().int().min(0, 'Pages must be >= 0').optional().nullable(),
+  basePrice: z.number().min(0, 'Price must be >= 0'),
   categoryIds: z.array(z.string()).optional(),
 });
 
@@ -332,7 +332,7 @@ const onSave = async (editedItem, showError) => {
     resetForm();
     return true;
   } catch (err) {
-    formError.value = err.message || 'Lỗi không xác định khi lưu.';
+    formError.value = err.message || 'An unknown error occurred while saving.';
     return false;
   }
 };

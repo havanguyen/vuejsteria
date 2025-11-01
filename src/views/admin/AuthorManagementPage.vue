@@ -1,6 +1,6 @@
 <template>
   <ManagementPage
-    title="Tác giả"
+    title="Authors"
     icon="mdi-account-edit"
     :headers="headers"
     :api="api"
@@ -16,7 +16,7 @@
     </template>
 
     <template #form="{ editedItem, isSubmitting }">
-      <v-form @submit.prevent="onSave(editedItem)">
+      <v-form>
         <v-alert
           v-if="formError"
           type="error"
@@ -31,7 +31,7 @@
         <v-row>
           <v-col cols="12" md="4">
             <ImageUploader
-              label="Avatar tác giả"
+              label="Author Avatar"
               v-model="avatarUrl"
               placeholderIcon="mdi-account-circle"
             />
@@ -40,7 +40,7 @@
             <v-text-field
               v-model="name"
               :error-messages="errors.name"
-              label="Tên tác giả"
+              label="Author Name"
               variant="outlined"
               density="comfortable"
               :disabled="isSubmitting"
@@ -50,7 +50,7 @@
             <v-textarea
               v-model="bio"
               :error-messages="errors.bio"
-              label="Tiểu sử"
+              label="Biography"
               variant="outlined"
               density="comfortable"
               :disabled="isSubmitting"
@@ -79,8 +79,8 @@ import {
 
 const headers = [
   { title: 'Avatar', key: 'avatarUrl', sortable: false, width: '100px' },
-  { title: 'Tên tác giả', key: 'name', sortable: true },
-  { title: 'Tiểu sử', key: 'bio', sortable: false },
+  { title: 'Author Name', key: 'name', sortable: true },
+  { title: 'Biography', key: 'bio', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
 ];
 
@@ -101,11 +101,11 @@ const defaultItem = ref({
 const formError = ref(null);
 
 const authorSchema = z.object({
-  name: z.string().min(1, 'Tên tác giả là bắt buộc'),
+  name: z.string().min(1, 'Author name is required'),
   bio: z.string().optional(),
   avatarUrl: z
     .string()
-    .url('URL không hợp lệ')
+    .url('Must be a valid URL')
     .optional()
     .nullable()
     .or(z.literal('')),
@@ -146,7 +146,7 @@ const onSave = async (editedItem, showError) => {
     resetForm();
     return true;
   } catch (err) {
-    formError.value = err.message || 'Lỗi không xác định khi lưu.';
+    formError.value = err.message || 'An unknown error occurred while saving.';
     return false;
   }
 };

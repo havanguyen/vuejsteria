@@ -1,6 +1,6 @@
 <template>
   <ManagementPage
-    title="Danh mục"
+    title="Categories"
     icon="mdi-bookmark-multiple"
     :headers="headers"
     :api="api"
@@ -14,7 +14,7 @@
     </template>
 
     <template #form="{ editedItem, isSubmitting }">
-      <v-form @submit.prevent="onSave(editedItem)">
+      <v-form>
         <v-alert
           v-if="formError"
           type="error"
@@ -29,7 +29,7 @@
         <v-text-field
           v-model="name"
           :error-messages="errors.name"
-          label="Tên danh mục"
+          label="Category Name"
           variant="outlined"
           density="comfortable"
           :disabled="isSubmitting"
@@ -65,9 +65,9 @@ import {
 
 const headers = [
   { title: 'ID', key: 'id', sortable: true, width: '300px' },
-  { title: 'Tên danh mục', key: 'name', sortable: true },
+  { title: 'Category Name', key: 'name', sortable: true },
   { title: 'Slug', key: 'slug', sortable: true },
-  { title: 'Danh mục cha', key: 'parentCategory', sortable: false },
+  { title: 'Parent Category', key: 'parentCategory', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
 ];
 
@@ -88,8 +88,8 @@ const defaultItem = ref({
 const formError = ref(null);
 
 const categorySchema = z.object({
-  name: z.string().min(1, 'Tên danh mục là bắt buộc'),
-  slug: z.string().min(1, 'Slug là bắt buộc'),
+  name: z.string().min(1, 'Category name is required'),
+  slug: z.string().min(1, 'Slug is required'),
   parentCategoryId: z.string().nullable().optional(),
 });
 
@@ -131,7 +131,7 @@ const onSave = async (editedItem, showError) => {
     resetForm();
     return true;
   } catch (err) {
-    formError.value = err.message || 'Lỗi không xác định khi lưu.';
+    formError.value = err.message || 'An unknown error occurred while saving.';
     return false;
   }
 };

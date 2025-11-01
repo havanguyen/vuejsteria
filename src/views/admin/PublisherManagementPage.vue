@@ -1,6 +1,6 @@
 <template>
   <ManagementPage
-    title="Nhà xuất bản"
+    title="Publishers"
     icon="mdi-domain"
     :headers="headers"
     :api="api"
@@ -10,7 +10,7 @@
     :onOpenDialog="handleOpenDialog"
   >
     <template #form="{ editedItem, isSubmitting }">
-      <v-form @submit.prevent="onSave(editedItem)">
+      <v-form>
         <v-alert
           v-if="formError"
           type="error"
@@ -25,7 +25,7 @@
         <v-text-field
           v-model="name"
           :error-messages="errors.name"
-          label="Tên nhà xuất bản"
+          label="Publisher Name"
           variant="outlined"
           density="comfortable"
           :disabled="isSubmitting"
@@ -51,7 +51,7 @@ import {
 
 const headers = [
   { title: 'ID', key: 'id', sortable: true, width: '300px' },
-  { title: 'Tên nhà xuất bản', key: 'name', sortable: true },
+  { title: 'Publisher Name', key: 'name', sortable: true },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
 ];
 
@@ -70,7 +70,7 @@ const defaultItem = ref({
 const formError = ref(null);
 
 const publisherSchema = z.object({
-  name: z.string().min(1, 'Tên NXB là bắt buộc'),
+  name: z.string().min(1, 'Publisher name is required'),
 });
 
 const { handleSubmit, errors, setValues, resetForm } = useForm({
@@ -106,7 +106,7 @@ const onSave = async (editedItem, showError) => {
     resetForm();
     return true;
   } catch (err) {
-    formError.value = err.message || 'Lỗi không xác định khi lưu.';
+    formError.value = err.message || 'An unknown error occurred while saving.';
     return false;
   }
 };

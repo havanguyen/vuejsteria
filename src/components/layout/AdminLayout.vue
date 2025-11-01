@@ -16,7 +16,7 @@
           'https://via.placeholder.com/150/E0E0E0/FFFFFF?text=No+Avatar'
         "
         :title="user?.profileResponse?.firstName || user?.username"
-        subtitle="Quản trị viên"
+        subtitle="Administrator"
         nav
         class="admin-user-card"
       >
@@ -67,7 +67,7 @@
             prepend-icon="mdi-logout"
             :class="{ 'justify-start': !rail, 'justify-center': rail }"
           >
-            <span v-if="!rail">Đăng xuất</span>
+            <span v-if="!rail">Logout</span>
           </v-btn>
         </div>
       </template>
@@ -77,17 +77,56 @@
       app
       color="white"
       elevation="2"
-      density="compact"
+      density="default"
       class="admin-app-bar"
     >
+      <v-app-bar-nav-icon @click.stop="rail = !rail"></v-app-bar-nav-icon>
       <v-toolbar-title class="text-grey-darken-3 font-weight-bold">
         Bookteria Admin
       </v-toolbar-title>
       <v-spacer></v-spacer>
+
       <v-btn icon :to="{ name: 'Home' }">
-        <v-icon color="primary">mdi-home-export-outline</v-icon>
-        <v-tooltip activator="parent" location="bottom">Về trang chủ</v-tooltip>
+        <v-icon color="grey-darken-1">mdi-home-export-outline</v-icon>
+        <v-tooltip activator="parent" location="bottom">Go to Site</v-tooltip>
       </v-btn>
+
+      <v-menu offset-y>
+        <template v-slot:activator="{ props }">
+          <v-btn v-bind="props" text class="pa-1">
+            <v-avatar size="36" class="mr-2 elevation-1">
+              <v-img
+                :src="
+                  user?.profileResponse?.avatarUrl ||
+                  'https://via.placeholder.com/150'
+                "
+                alt="Avatar"
+                cover
+              ></v-img>
+            </v-avatar>
+            <span class="d-none d-sm-inline text-grey-darken-2">
+              {{ user?.profileResponse?.firstName || user?.username }}
+            </span>
+            <v-icon right color="grey-darken-1">mdi-menu-down</v-icon>
+          </v-btn>
+        </template>
+
+        <v-list dense>
+          <v-list-item :to="{ name: 'Profile' }">
+            <template v-slot:prepend>
+              <v-icon>mdi-account-circle</v-icon>
+            </template>
+            <v-list-item-title>My Profile</v-list-item-title>
+          </v-list-item>
+          <v-divider></v-divider>
+          <v-list-item @click="handleLogout">
+            <template v-slot:prepend>
+              <v-icon color="error">mdi-logout</v-icon>
+            </template>
+            <v-list-item-title class="text-error">Logout</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
     </v-app-bar>
 
     <v-main class="admin-main-bg">
@@ -122,31 +161,31 @@ const navItems = ref([
     exact: true,
   },
   {
-    title: 'Quản lý Users',
+    title: 'User Management',
     icon: 'mdi-account-group',
     to: { name: 'AdminUserList' },
     exact: false,
   },
   {
-    title: 'Quản lý Sản phẩm',
+    title: 'Product Management',
     icon: 'mdi-book-open-page-variant',
     to: { name: 'AdminProductList' },
     exact: false,
   },
   {
-    title: 'Quản lý Danh mục',
+    title: 'Category Management',
     icon: 'mdi-bookmark-multiple',
     to: { name: 'AdminCategoryList' },
     exact: false,
   },
   {
-    title: 'Quản lý Tác giả',
+    title: 'Author Management',
     icon: 'mdi-account-edit',
     to: { name: 'AdminAuthorList' },
     exact: false,
   },
   {
-    title: 'Quản lý NXB',
+    title: 'Publisher Management',
     icon: 'mdi-domain',
     to: { name: 'AdminPublisherList' },
     exact: false,

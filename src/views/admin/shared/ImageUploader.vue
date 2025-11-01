@@ -56,7 +56,7 @@ const props = defineProps({
   modelValue: String,
   label: {
     type: String,
-    default: 'Tải ảnh lên',
+    default: 'Upload Image',
   },
   placeholder: {
     type: String,
@@ -97,9 +97,9 @@ const handleFileSelected = async (event) => {
   try {
     const response = await uploadImageApi(formData);
     emit('update:modelValue', response.url);
-    notificationStore.showSuccess('Tải ảnh lên thành công!');
+    notificationStore.showSuccess('Image uploaded successfully!');
   } catch (err) {
-    notificationStore.showError(err.message || 'Tải ảnh lên thất bại');
+    notificationStore.showError(err.message || 'Image upload failed');
   } finally {
     isUploading.value = false;
     loadingStore.hideLoading();

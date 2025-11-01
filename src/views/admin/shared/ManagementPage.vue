@@ -2,7 +2,7 @@
   <v-container>
     <v-card class="pa-4 pa-md-6" elevation="2">
       <v-card-title
-        class="text-h4 font-weight-medium mb-4 d-flex align-center"
+        class="text-h4 font-weight-medium mb-4 d-flex align-center flex-wrap"
       >
         <v-icon :icon="icon" start color="primary" size="36"></v-icon>
         {{ title }}
@@ -12,13 +12,24 @@
           @click="openDialog()"
           prepend-icon="mdi-plus"
           variant="flat"
-          class="page-header-button"
+          class="page-header-button mt-2 mt-sm-0"
         >
-          Tạo mới
+          Create New
         </v-btn>
       </v-card-title>
 
       <v-card-text>
+        <v-text-field
+          v-model="search"
+          label="Search..."
+          prepend-inner-icon="mdi-magnify"
+          variant="outlined"
+          density="comfortable"
+          hide-details
+          class="mb-4"
+          style="max-width: 400px"
+        ></v-text-field>
+
         <v-data-table-server
           v-model:items-per-page="pagination.size"
           :headers="headers"
@@ -43,7 +54,7 @@
           <template v-slot:no-data>
             <div class="text-center pa-6 text-grey">
               <v-icon size="large" class="mb-2">mdi-magnify-close</v-icon>
-              <div>Không tìm thấy dữ liệu.</div>
+              <div>No data found.</div>
             </div>
           </template>
 
@@ -64,8 +75,8 @@
                 @click="openDialog(item)"
                 prepend-icon="mdi-pencil"
               >
-                Sửa
-                <v-tooltip activator="parent" location="top">Sửa</v-tooltip>
+                Edit
+                <v-tooltip activator="parent" location="top">Edit</v-tooltip>
               </v-btn>
               <v-btn
                 variant="tonal"
@@ -74,8 +85,8 @@
                 @click="confirmDeleteItem(item)"
                 prepend-icon="mdi-delete"
               >
-                Xóa
-                <v-tooltip activator="parent" location="top">Xóa</v-tooltip>
+                Delete
+                <v-tooltip activator="parent" location="top">Delete</v-tooltip>
               </v-btn>
             </div>
           </template>
@@ -105,7 +116,7 @@
             @click="closeDialog"
             :disabled="isSubmitting"
           >
-            Hủy
+            Cancel
           </v-btn>
           <v-btn
             color="primary"
@@ -114,7 +125,7 @@
             :disabled="isSubmitting"
             variant="flat"
           >
-            Lưu
+            Save
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -122,21 +133,22 @@
 
     <v-dialog v-model="deleteDialog" max-width="450px">
       <v-card class="pa-2">
-        <v-card-title class="text-h5">Xác nhận xóa</v-card-title>
+        <v-card-title class="text-h5">Confirm Deletion</v-card-title>
         <v-card-text>
-          Bạn có chắc chắn muốn xóa mục này? Thao tác này không thể hoàn tác.
+          Are you sure you want to delete this item? This action cannot be
+          undone.
         </v-card-text>
         <v-card-actions class="pa-4">
           <v-spacer></v-spacer>
           <v-btn color="blue-darken-1" variant="text" @click="closeDelete"
-            >Hủy</v-btn
+            >Cancel</v-btn
           >
           <v-btn
             color="red-darken-1"
             variant="flat"
             @click="deleteItem"
             :loading="isSubmitting"
-            >Xóa</v-btn
+            >Delete</v-btn
           >
           <v-spacer></v-spacer>
         </v-card-actions>
@@ -201,7 +213,7 @@ const itemToDelete = ref(null);
 const isSubmitting = ref(false);
 
 const dialogTitle = computed(() =>
-  editedItem.value.id ? `Sửa ${props.title}` : `Tạo ${props.title}`
+  editedItem.value.id ? `Edit ${props.title}` : `Create ${props.title}`
 );
 
 const customSlots = computed(() => {
@@ -232,7 +244,7 @@ const loadItems = async ({ page, itemsPerPage, sortBy }) => {
       pagination.value.totalPages = 1;
     }
   } catch (error) {
-    notificationStore.showError(`Lỗi khi tải ${props.title}: ${error.message}`);
+    notificationStore.showError(`Error loading ${props.title}: ${error.message}`);
     items.value = [];
     pagination.value.totalElements = 0;
   } finally {
@@ -269,7 +281,7 @@ const saveItem = async () => {
     });
 
     if (success) {
-      notificationStore.showSuccess(`${props.title} đã được lưu.`);
+      notificationStore.showSuccess(`${props.title} saved successfully.`);
       closeDialog();
       await loadItems({
         page: pagination.value.page,
@@ -280,7 +292,7 @@ const saveItem = async () => {
     }
   } catch (error) {
     notificationStore.showError(
-      `Lỗi khi lưu: ${error.message || 'Validation failed'}`
+      `Save failed: ${error.message || 'Validation failed'}`
     );
   } finally {
     isSubmitting.value = false;
@@ -302,7 +314,7 @@ const deleteItem = async () => {
   isSubmitting.value = true;
   try {
     await props.api.delete(itemToDelete.value.id);
-    notificationStore.showSuccess(`${props.title} đã được xóa.`);
+    notificationStore.showSuccess(`${props.title} deleted successfully.`);
     closeDelete();
     await loadItems({
       page: pagination.value.page,
@@ -311,7 +323,7 @@ const deleteItem = async () => {
     });
     emit('item-deleted');
   } catch (error) {
-    notificationStore.showError(`Lỗi khi xóa: ${error.message}`);
+    notificationStore.showError(`Delete failed: ${error.message}`);
   } finally {
     isSubmitting.value = false;
   }
