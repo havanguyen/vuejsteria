@@ -1,145 +1,188 @@
 <template>
   <v-container class="fill-height" fluid>
     <v-row align="center" justify="center">
-      <v-col cols="12" sm="8" md="4">
-        <Transition name="fade" appear>
-          <v-card class="elevation-12" v-if="showForm">
-            <v-toolbar color="primary" dark flat>
-              <v-toolbar-title>Đăng ký</v-toolbar-title>
-            </v-toolbar>
-            <v-card-text>
-              <v-form @submit.prevent="onSubmit">
-                <v-slide-y-transition>
-                  <v-alert
-                    v-if="errorMessage"
-                    type="error"
-                    class="mb-4"
-                    density="compact"
-                    closable
-                    @click:close="errorMessage = ''"
-                  >
-                    {{ errorMessage }}
-                  </v-alert>
-                </v-slide-y-transition>
+      <v-col cols="12" sm="8" md="6" lg="4">
+        <v-card class="elevation-12 pa-4 pa-md-6">
+          <v-card-title class="text-center text-h5 font-weight-bold mb-6">
+            <v-avatar color="secondary" size="large" class="mb-4">
+              <v-icon icon="mdi-account-plus" />
+            </v-avatar>
+            <div>Create Your Account</div>
+          </v-card-title>
 
-                <v-text-field
-                  v-model="username.value.value"
-                  :error-messages="username.errorMessage.value"
-                  label="Tên đăng nhập"
-                  prepend-icon="mdi-account"
-                  type="text"
-                  variant="underlined"
-                ></v-text-field>
+          <v-card-text>
+            <v-form @submit.prevent="onSubmit">
+              <v-slide-y-transition>
+                <v-alert
+                  v-if="errorMessage"
+                  type="error"
+                  variant="tonal"
+                  density="compact"
+                  class="mb-4"
+                  closable
+                  @click:close="errorMessage = ''"
+                >
+                  {{ errorMessage }}
+                </v-alert>
+              </v-slide-y-transition>
 
-                <v-text-field
-                  v-model="email.value.value"
-                  :error-messages="email.errorMessage.value"
-                  label="Email"
-                  prepend-icon="mdi-email"
-                  type="email"
-                  variant="underlined"
-                ></v-text-field>
+              <v-row>
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="firstName.value.value"
+                    :error-messages="firstName.errorMessage.value"
+                    label="First Name"
+                    variant="outlined"
+                    density="comfortable"
+                    class="mb-3"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="lastName.value.value"
+                    :error-messages="lastName.errorMessage.value"
+                    label="Last Name"
+                    variant="outlined"
+                    density="comfortable"
+                    class="mb-3"
+                  ></v-text-field>
+                </v-col>
+              </v-row>
 
-                <v-text-field
-                  v-model="password.value.value"
-                  :error-messages="password.errorMessage.value"
-                  label="Mật khẩu"
-                  prepend-icon="mdi-lock"
-                  type="password"
-                  variant="underlined"
-                ></v-text-field>
+              <v-text-field
+                v-model="email.value.value"
+                :error-messages="email.errorMessage.value"
+                label="Email"
+                prepend-inner-icon="mdi-email"
+                type="email"
+                variant="outlined"
+                density="comfortable"
+                class="mb-3"
+              ></v-text-field>
 
-                <v-text-field
-                  v-model="confirmPassword.value.value"
-                  :error-messages="confirmPassword.errorMessage.value"
-                  label="Xác nhận mật khẩu"
-                  prepend-icon="mdi-lock-check"
-                  type="password"
-                  variant="underlined"
-                ></v-text-field>
+              <v-text-field
+                v-model="username.value.value"
+                :error-messages="username.errorMessage.value"
+                label="Username"
+                prepend-inner-icon="mdi-account"
+                type="text"
+                variant="outlined"
+                density="comfortable"
+                class="mb-3"
+              ></v-text-field>
 
-                <v-card-actions>
-                  <v-spacer></v-spacer>
-                  <v-btn
-                    type="submit"
-                    color="primary"
-                    :loading="isLoading"
-                    :disabled="isLoading"
-                  >
-                    Đăng ký
-                  </v-btn>
-                </v-card-actions>
-              </v-form>
-            </v-card-text>
-            <v-card-actions class="justify-center">
-              <span
-                >Đã có tài khoản?
-                <router-link to="/login">Đăng nhập</router-link></span
+              <v-text-field
+                v-model="password.value.value"
+                :error-messages="password.errorMessage.value"
+                label="Password"
+                prepend-inner-icon="mdi-lock"
+                type="password"
+                variant="outlined"
+                density="comfortable"
+                class="mb-3"
+              ></v-text-field>
+
+              <v-text-field
+                v-model="confirmPassword.value.value"
+                :error-messages="confirmPassword.errorMessage.value"
+                label="Confirm Password"
+                prepend-inner-icon="mdi-lock-check"
+                type="password"
+                variant="outlined"
+                density="comfortable"
+                class="mb-3"
+              ></v-text-field>
+
+              <v-row>
+                <v-col cols="12" sm="7">
+                  <v-text-field
+                    v-model="dob.value.value"
+                    :error-messages="dob.errorMessage.value"
+                    label="Date of Birth"
+                    type="date"
+                    variant="outlined"
+                    density="comfortable"
+                    class="mb-3"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="5">
+                  <v-text-field
+                    v-model="city.value.value"
+                    :error-messages="city.errorMessage.value"
+                    label="City (Optional)"
+                    variant="outlined"
+                    density="comfortable"
+                    class="mb-3"
+                  ></v-text-field>
+                </v-col>
+              </v-row>
+
+              <v-btn
+                type="submit"
+                color="primary"
+                block
+                size="large"
+                :loading="isLoading"
+                :disabled="isLoading"
+                class="mt-4"
               >
-            </v-card-actions>
-          </v-card>
-        </Transition>
+                Sign Up
+              </v-btn>
+            </v-form>
+          </v-card-text>
+          <v-divider class="my-3"></v-divider>
+          <v-card-actions class="justify-center pa-4">
+            <router-link to="/login" class="text-body-2 text-decoration-none"
+              >Already have an account? Sign In</router-link
+            >
+          </v-card-actions>
+        </v-card>
       </v-col>
     </v-row>
   </v-container>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useField, useForm } from 'vee-validate';
+import { toTypedSchema } from '@vee-validate/zod'; // Đảm bảo dùng zod
 import { registerSchema } from '@/validations/authSchema';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { registerApi } from '@/api/authApi'; // Import API trực tiếp
 import { useNotificationStore } from '@/stores/useNotificationStore';
 
-const showForm = ref(false);
 const isLoading = ref(false);
 const errorMessage = ref('');
 
 const router = useRouter();
-const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
 
 const { handleSubmit } = useForm({
-  validationSchema: registerSchema
+  validationSchema: toTypedSchema(registerSchema) // Dùng Zod
 });
 
+// SỬA LỖI: Thêm các trường (fields) bị thiếu
 const username = useField('username');
 const email = useField('email');
 const password = useField('password');
 const confirmPassword = useField('confirmPassword');
+const firstName = useField('firstName');
+const lastName = useField('lastName');
+const dob = useField('dob');
+const city = useField('city');
 
 const onSubmit = handleSubmit(async (values) => {
   isLoading.value = true;
   errorMessage.value = '';
   try {
-    await authStore.register(values);
-    notificationStore.showSuccess('Đăng ký thành công! Vui lòng đăng nhập.');
+    await registerApi(values); // Không cần dùng store
+    notificationStore.showSuccess('Registration successful! Please log in.');
     router.push('/login');
   } catch (error) {
-    const apiError = error.response?.data?.message || 'Lỗi không xác định';
+    const apiError = error?.message || 'An unknown error occurred';
     errorMessage.value = apiError;
   } finally {
     isLoading.value = false;
   }
 });
-
-onMounted(() => {
-  showForm.value = true;
-});
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition:
-    opacity 0.5s ease,
-    transform 0.5s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(20px);
-}
-</style>

@@ -1,18 +1,19 @@
 <template>
-  <v-progress-linear
-    :active="isLoading"
-    indeterminate
-    color="primary"
-    absolute
-    top
-    style="z-index: 9999"
-  ></v-progress-linear>
+  <v-overlay
+    :model-value="loadingStore.isLoading"
+    class="align-center justify-center"
+    persistent
+    scrim="true"
+  >
+    <v-progress-circular
+      indeterminate
+      color="primary"
+      size="64"
+    ></v-progress-circular>
+  </v-overlay>
 </template>
 
 <script setup>
-import { storeToRefs } from 'pinia';
 import { useLoadingStore } from '@/stores/useLoadingStore';
-
 const loadingStore = useLoadingStore();
-const { isLoading } = storeToRefs(loadingStore);
 </script>

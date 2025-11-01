@@ -1,9 +1,10 @@
 import axiosInstance from '@/config/axiosConfig';
-import axios from 'axios';
+// import axios from 'axios'; // Không cần thiết ở đây
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useLoadingStore } from '@/stores/useLoadingStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
-import { getAccessToken, getRefreshToken } from '@/utils/authUtils';
+// SỬA LỖI: Xóa 2 dòng import không tồn tại dưới đây
+// import { getAccessToken, getRefreshToken } from '@/utils/authUtils';
 
 let isRefreshing = false;
 let failedQueue = [];
@@ -27,7 +28,10 @@ export default {
         const loadingStore = useLoadingStore();
         loadingStore.showLoading();
 
-        const token = getAccessToken();
+        // SỬA LỖI: Lấy token trực tiếp từ store
+        const authStore = useAuthStore();
+        const token = authStore.token; // Đọc từ state của Pinia
+
         if (token) {
           config.headers['Authorization'] = 'Bearer ' + token;
         }
@@ -71,7 +75,9 @@ export default {
           originalRequest._retry = true;
           isRefreshing = true;
 
-          const refreshToken = getRefreshToken();
+          // SỬA LỖI: Lấy refresh token trực tiếp từ store
+          const refreshToken = authStore.refreshToken; // Đọc từ state của Pinia
+
           if (!refreshToken) {
             isRefreshing = false;
             authStore.logout();
@@ -89,7 +95,7 @@ export default {
             authStore.logout();
 
             const apiError =
-              _error.response?.data?.message || 'Phiên đăng nhập hết hạn';
+              _error.response?.data?.message || 'Session expired. Please login again.'; // Dịch
             notificationStore.showError(apiError);
 
             return Promise.reject(_error);
@@ -100,7 +106,7 @@ export default {
 
         if (error.response?.status !== 401) {
           const apiError =
-            error.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại';
+            error.response?.data?.message || 'An error occurred. Please try again.'; // Dịch
           notificationStore.showError(apiError);
         }
 

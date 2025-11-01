@@ -120,7 +120,8 @@ const onSubmit = handleSubmit(async (values) => {
 
     const redirectPath = route.query.redirect || '/';
     router.push(redirectPath);
-    notificationStore.showSuccess('Đăng nhập thành công!');
+    // SỬA LỖI: Dịch thuật
+    notificationStore.showSuccess('Login successful!');
   } catch (err) {
     serverError.value =
       err?.title ||

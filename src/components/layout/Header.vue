@@ -1,103 +1,105 @@
+<template>
+  <v-app-bar app color="primary" dark elevate-on-scroll>
+    <v-container class="d-flex align-center py-0">
+      <v-toolbar-title
+        class="font-weight-bold"
+        style="cursor: pointer"
+        @click="goToHome"
+      >
+        <v-icon left class="mb-1">mdi-book-open-page-variant</v-icon>
+        Bookteria
+      </v-toolbar-title>
+
+      <v-spacer></v-spacer>
+
+      <v-btn :to="{ name: 'Home' }" text class="d-none d-sm-flex">
+        <v-icon left>mdi-home</v-icon>
+        Home
+      </v-btn>
+
+      <v-menu v-if="isAdmin" offset-y>
+        <template v-slot:activator="{ props }">
+          <v-btn v-bind="props" text class="d-none d-sm-flex">
+            <v-icon left>mdi-shield-account</v-icon>
+            Admin
+            <v-icon right>mdi-menu-down</v-icon>
+          </v-btn>
+        </template>
+        <v-list dense>
+          <v-list-item :to="{ name: 'AdminUserList' }">
+            <v-list-item-title>User Management</v-list-item-title>
+          </v-list-item>
+          </v-list>
+      </v-menu>
+
+      <v-spacer></v-spacer>
+
+      <div v-if="!isAuthenticated">
+        <v-btn :to="{ name: 'Login' }" text> Login </v-btn>
+        <v-btn :to="{ name: 'Register' }" color="white" variant="outlined">
+          Register
+        </v-btn>
+      </div>
+
+      <div v-else>
+        <v-menu offset-y>
+          <template v-slot:activator="{ props }">
+            <v-btn v-bind="props" text>
+              <v-avatar size="36" class="mr-2 elevation-1">
+                <v-img
+                  :src="user?.avatarUrl || 'https://via.placeholder.com/150'"
+                  alt="Avatar"
+                  cover
+                ></v-img>
+              </v-avatar>
+              Hi, {{ user?.firstName || user?.username }}
+              <v-icon right>mdi-menu-down</v-icon>
+            </v-btn>
+          </template>
+
+          <v-list dense>
+            <v-list-item :to="{ name: 'Profile' }">
+              <template v-slot:prepend>
+                <v-icon>mdi-account-circle</v-icon>
+              </template>
+              <v-list-item-title>My Profile</v-list-item-title>
+            </v-list-item>
+            <v-list-item :to="{ name: 'EditProfile' }">
+              <template v-slot:prepend>
+                <v-icon>mdi-account-edit</v-icon>
+              </template>
+              <v-list-item-title>Edit Profile</v-list-item-title>
+            </v-list-item>
+            <v-divider></v-divider>
+            <v-list-item @click="handleLogout">
+              <template v-slot:prepend>
+                <v-icon color="error">mdi-logout</v-icon>
+              </template>
+              <v-list-item-title class="text-error">Logout</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
+      </div>
+    </v-container>
+  </v-app-bar>
+</template>
+
 <script setup>
-import { computed, ref } from 'vue';
-import { useRouter, RouterLink, useRoute } from 'vue-router';
+import { computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/useAuthStore';
 
-const authStore = useAuthStore();
 const router = useRouter();
-const route = useRoute();
+const authStore = useAuthStore();
+// Lấy cả user và isAuthenticated từ store
+const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
 
-const isAuthenticated = computed(() => authStore.isAuthenticated);
-const drawer = ref(false);
+const goToHome = () => {
+  router.push({ name: 'Home' });
+};
 
 const handleLogout = () => {
   authStore.logout();
-  router.push('/login');
 };
-
-const menuItems = computed(() => [
-    { title: 'Home', name: 'Home', icon: 'mdi-home-outline', requiresAuth: false },
-    { title: 'Profile', name: 'Profile', icon: 'mdi-account-circle-outline', requiresAuth: true },
-]);
-
-const isActive = (itemName) => route.name === itemName;
 </script>
-
-<template>
-  <v-app-bar app color="surface" density="compact" border="b">
-
-    <v-app-bar-nav-icon class="d-md-none" @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
-
-    <v-toolbar-title class="font-weight-bold">
-      <router-link to="/" class="text-decoration-none text-primary d-flex align-center">
-        <v-icon icon="mdi-book-open-page-variant" class="mr-2" />
-        Bookteria
-      </router-link>
-    </v-toolbar-title>
-
-    <v-spacer />
-
-    <div class="d-none d-md-flex align-center">
-      <template v-for="item in menuItems" :key="item.name">
-         <v-btn
-           v-if="!item.requiresAuth || (item.requiresAuth && isAuthenticated)"
-           :to="{ name: item.name }"
-           :variant="isActive(item.name) ? 'tonal' : 'text'"
-           class="mx-1"
-         >
-           {{ item.title }}
-         </v-btn>
-      </template>
-
-      <template v-if="isAuthenticated">
-        <v-btn @click="handleLogout" variant="text" class="mx-1">Logout</v-btn>
-      </template>
-      <template v-else>
-        <v-btn :to="{ name: 'Login' }" :variant="isActive('Login') ? 'tonal' : 'text'" class="mx-1">Login</v-btn>
-        <v-btn :to="{ name: 'Register' }" variant="flat" color="primary" class="ml-2">Sign Up</v-btn>
-      </template>
-    </div>
-  </v-app-bar>
-
-   <v-navigation-drawer v-model="drawer" temporary app class="d-md-none">
-      <v-list density="compact" nav>
-         <v-list-item
-           v-for="item in menuItems"
-           :key="item.name"
-           v-if="item && (!item.requiresAuth || (item.requiresAuth && isAuthenticated))"
-           :prepend-icon="item.icon"
-           :title="item.title"
-           :to="{ name: item.name }"
-           :active="isActive(item.name)"
-           @click="drawer = false"
-         ></v-list-item>
-
-         <v-divider class="my-2"></v-divider>
-
-          <template v-if="isAuthenticated">
-             <v-list-item
-               prepend-icon="mdi-logout"
-               title="Logout"
-               @click="handleLogout(); drawer = false;"
-             ></v-list-item>
-          </template>
-          <template v-else>
-             <v-list-item
-               prepend-icon="mdi-login"
-               title="Login"
-               :to="{ name: 'Login' }"
-               :active="isActive('Login')"
-               @click="drawer = false"
-             ></v-list-item>
-              <v-list-item
-               prepend-icon="mdi-account-plus-outline"
-               title="Sign Up"
-               :to="{ name: 'Register' }"
-               :active="isActive('Register')"
-               @click="drawer = false"
-             ></v-list-item>
-          </template>
-      </v-list>
-   </v-navigation-drawer>
-
-</template>

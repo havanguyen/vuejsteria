@@ -11,37 +11,40 @@ const routes = [
       {
         path: '',
         name: 'Home',
-        component: HomePage
+        component: HomePage,
+        meta: { title: 'Home' } // Thêm
       },
       {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/profile/ProfilePage.vue'),
-        meta: { requiresAuth: true }
+        meta: { requiresAuth: true, title: 'My Profile' } // Thêm
       },
       {
         path: 'profile/edit',
         name: 'EditProfile',
         component: () => import('@/views/profile/EditProfilePage.vue'),
-        meta: { requiresAuth: true }
+        meta: { requiresAuth: true, title: 'Edit Profile' } // Thêm
       }
     ]
   },
   {
     path: '/admin',
     component: MainLayout,
-    meta: { requiresAuth: true, roles: ['ADMIN'] },
+    meta: { requiresAuth: true, roles: ['ADMIN'], title: 'Admin' }, // Thêm
     children: [
       {
         path: 'users',
         name: 'AdminUserList',
-        component: () => import('@/views/admin/UserListPage.vue')
+        component: () => import('@/views/admin/UserListPage.vue'),
+        meta: { title: 'User Management' } // Thêm
       },
       {
         path: 'users/:id',
         name: 'AdminUserDetail',
         component: () => import('@/views/admin/UserDetailPage.vue'),
-        props: true
+        props: true,
+        meta: { title: 'User Details' } // Thêm
       }
     ]
   },
@@ -49,18 +52,19 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: () => import('@/views/auth/LoginPage.vue'),
-    meta: { requiresGuest: true }
+    meta: { requiresGuest: true, title: 'Login' } // Thêm
   },
   {
     path: '/register',
     name: 'Register',
     component: () => import('@/views/auth/RegisterPage.vue'),
-    meta: { requiresGuest: true }
+    meta: { requiresGuest: true, title: 'Register' } // Thêm
   },
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: () => import('@/views/NotFoundPage.vue')
+    component: () => import('@/views/NotFoundPage.vue'),
+    meta: { title: 'Not Found' } // Thêm
   }
 ];
 
@@ -72,6 +76,11 @@ const router = createRouter({
 let isHydrated = false;
 
 router.beforeEach(async (to, from, next) => {
+  // Đặt tiêu đề trang
+  document.title = to.meta.title
+    ? `${to.meta.title} - Bookteria`
+    : 'Bookteria';
+
   const authStore = useAuthStore();
 
   if (!isHydrated) {

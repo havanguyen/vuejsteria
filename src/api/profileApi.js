@@ -1,29 +1,12 @@
-import axiosInstance from '@/config/axiosConfig';
+import { privateApi } from '@/config/axios'
 
-export const getProfileApi = async (profileId) => {
+export const getMyProfile = async () => {
   try {
-    const response = await axiosInstance.get(`/profile/users/${profileId}`);
-    return response.data.result;
+    const response = await privateApi.get('/profiles/my-profile')
+    return response.data.result
   } catch (error) {
-    console.error('Failed to fetch profile:', error);
-    throw error.response?.data || error;
+    throw error.response?.data || error
   }
-};
+}
 
-export const updateMyAvatarApi = async (formData) => {
-  try {
-    const response = await axiosInstance.put(
-      '/profile/users/my-avatar',
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      }
-    );
-    return response.data.result;
-  } catch (error) {
-    console.error('Failed to update avatar:', error);
-    throw error.response?.data || error;
-  }
-};
+// The 'updateAvatar' function has been removed

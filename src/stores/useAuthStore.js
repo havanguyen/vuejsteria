@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { jwtDecode } from 'jwt-decode';
-import { loginApi, logoutApi, refreshTokenApi } from '@/api/authApi';
+import { loginApi, logoutApi, refreshTokenApi, registerApi } from '@/api/authApi';
 import { getMyInfoApi } from '@/api/userApi';
 import { getRolesFromScope } from '@/utils/authUtils';
 import { useNotificationStore } from './useNotificationStore';
@@ -15,7 +15,7 @@ export const useAuthStore = defineStore(
     const isProfileLoading = ref(false);
 
     const isAuthenticated = computed(() => !!token.value && !!user.value);
-    
+
     const userRoles = computed(() => {
       if (!user.value?.roles) return [];
       if (typeof user.value.roles[0] === 'string') {
@@ -54,7 +54,7 @@ export const useAuthStore = defineStore(
       token.value = null;
       refreshToken.value = null;
       user.value = null;
-      
+
       const router = (await import('@/router')).default;
       router.push('/login');
     }
@@ -70,7 +70,7 @@ export const useAuthStore = defineStore(
         console.error('Failed to fetch full user info:', error);
         const notificationStore = useNotificationStore();
         notificationStore.showError(
-          'Không thể tải hồ sơ. Một số thông tin có thể bị thiếu.'
+          'Could not load profile. Some info may be missing.' // Đã dịch
         );
 
         if (error.response && error.response.status === 401) {
@@ -82,7 +82,7 @@ export const useAuthStore = defineStore(
             user.value = {
               id: decodedToken.sub,
               username: decodedToken.sub,
-              roles: roles.map(r => ({ name: r })),
+              roles: roles.map((r) => ({ name: r })),
               profileResponse: null,
               active: true
             };

@@ -1,18 +1,18 @@
 <template>
-  <v-layout>
-    <Header />
+  <v-app>
+    <Header/>
+    
     <v-main>
-      <GlobalLoadingIndicator />
-      <v-container fluid>
+      <v-container fluid class="pa-4 pa-md-8">
         <router-view />
       </v-container>
     </v-main>
-    <Footer />
-  </v-layout>
+    
+    <Footer/>
+  </v-app>
 </template>
 
 <script setup>
 import Header from './Header.vue';
 import Footer from './Footer.vue';
-import GlobalLoadingIndicator from './GlobalLoadingIndicator.vue';
 </script>

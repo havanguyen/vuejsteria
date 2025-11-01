@@ -1,34 +1,36 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useForm, useField } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
-import { activeProfileSchema } from '@/validations/profileSchema';
+import { profileSchema } from '@/validations/profileSchema'; // SỬA LỖI: Import đúng schema
 import { useAuthStore } from '@/stores/useAuthStore';
 import { storeToRefs } from 'pinia';
-import { updateMyInfoApi } from '@/api/userApi';
-import { updateMyAvatarApi } from '@/api/profileApi';
+import { updateMyInfoApi } from '@/api/userApi'; // Import API submit
+import { uploadImageApi } from '@/api/fileApi'; // Import API upload
 import { useNotificationStore } from '@/stores/useNotificationStore';
+import { useLoadingStore } from '@/stores/useLoadingStore';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
-const { user: userProfile } = storeToRefs(authStore);
+const loadingStore = useLoadingStore();
+const { user } = storeToRefs(authStore);
 
 const isSubmitting = ref(false);
-const isUploadingAvatar = ref(false);
-const avatarFile = ref([]);
+const isUploading = ref(false);
 const avatarPreview = ref(null);
-const avatarInput = ref(null);
 
-const { handleSubmit, errors, setValues } = useForm({
-  validationSchema: toTypedSchema(activeProfileSchema),
+// SỬA LỖI: Sử dụng 'profileSchema'
+const { handleSubmit, errors, setValues, setFieldValue } = useForm({
+  validationSchema: toTypedSchema(profileSchema),
   initialValues: {
     firstName: '',
     lastName: '',
-    dob: null,
+    dob: '',
     city: '',
     email: '',
+    avatarUrl: '', // Trường này sẽ giữ URL ảnh
     password: '',
     confirmPassword: ''
   }
@@ -41,22 +43,60 @@ const { value: city } = useField('city');
 const { value: email } = useField('email');
 const { value: password } = useField('password');
 const { value: confirmPassword } = useField('confirmPassword');
+// avatarUrl được quản lý bằng setFieldValue
 
 onMounted(() => {
-  if (userProfile.value?.profile) {
+  // SỬA LỖI: Đọc từ 'user.profileResponse' thay vì 'user.profile'
+  if (user.value && user.value.profileResponse) {
+    const profile = user.value.profileResponse;
     setValues({
-      firstName: userProfile.value.profile.firstName,
-      lastName: userProfile.value.profile.lastName,
-      dob: userProfile.value.profile.dob,
-      city: userProfile.value.profile.city,
-      email: userProfile.value.profile.email
+      firstName: profile.firstName || '',
+      lastName: profile.lastName || '',
+      dob: profile.dob ? profile.dob.split('T')[0] : '', // Format date
+      city: profile.city || '',
+      email: profile.email || '',
+      avatarUrl: profile.avatarUrl || ''
+    });
+    avatarPreview.value = profile.avatarUrl;
+  } else if (user.value) {
+    // Fallback nếu profileResponse bị null (chỉ có data từ token)
+    setValues({
+      email: user.value.email || user.value.username
     });
   }
 });
 
+// SỬA LỖI LOGIC UPLOAD: Triển khai luồng 1-form
+const onFileChange = async (files) => {
+  const file = files[0]; // v-file-input trả về một mảng
+  if (!file) return;
+
+  isUploading.value = true;
+  loadingStore.showLoading();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await uploadImageApi(formData); // 1. Gọi file-service
+    const imageUrl = response.url;
+
+    setFieldValue('avatarUrl', imageUrl); // 2. Gán URL vào form
+    avatarPreview.value = imageUrl;
+    notificationStore.showSuccess('Avatar uploaded successfully!');
+  } catch (error) {
+    notificationStore.showError(error.message || 'Avatar upload failed');
+  } finally {
+    isUploading.value = false;
+    loadingStore.hideLoading();
+  }
+};
+
+// SỬA LỖI LOGIC SUBMIT
 const onSubmit = handleSubmit(async (values) => {
   isSubmitting.value = true;
+
   const updateData = { ...values };
+
   if (!updateData.password) {
     delete updateData.password;
     delete updateData.confirmPassword;
@@ -64,167 +104,90 @@ const onSubmit = handleSubmit(async (values) => {
     delete updateData.confirmPassword;
   }
 
-  if (updateData.dob === '') {
-    updateData.dob = null;
-  }
-  if (updateData.city === '') {
-    updateData.city = null;
-  }
-  if (updateData.email === '') {
-    updateData.email = null;
-  }
-
   try {
+    // 3. Gửi 1 API duy nhất chứa cả avatarUrl dạng text
     await updateMyInfoApi(updateData);
-    await authStore.fetchMyInfo();
-    notificationStore.showSuccess('Cập nhật hồ sơ thành công!');
+    await authStore.fetchMyInfo(); // Tải lại state
+    notificationStore.showSuccess('Profile updated successfully!');
     router.push({ name: 'Profile' });
   } catch (error) {
-    notificationStore.showError(
-      error.response?.data?.message || 'Lỗi cập nhật hồ sơ'
-    );
+    notificationStore.showError(error.message || 'Failed to update profile');
   } finally {
     isSubmitting.value = false;
   }
 });
-
-const triggerAvatarUpload = () => {
-  if (avatarInput.value) {
-    avatarInput.value.$el.querySelector('input').click();
-  }
-};
-
-const onFileChange = (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    avatarFile.value = [file];
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      avatarPreview.value = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  } else {
-    avatarFile.value = [];
-    avatarPreview.value = null;
-  }
-};
-
-const onUploadAvatar = async () => {
-  if (!avatarFile.value || avatarFile.value.length === 0) return;
-
-  isUploadingAvatar.value = true;
-  const formData = new FormData();
-  formData.append('file', avatarFile.value[0]);
-
-  try {
-    await updateMyAvatarApi(formData);
-    await authStore.fetchMyInfo();
-    notificationStore.showSuccess('Cập nhật avatar thành công!');
-    avatarFile.value = [];
-    avatarPreview.value = null;
-  } catch (error) {
-    notificationStore.showError('Lỗi tải lên avatar');
-  } finally {
-    isUploadingAvatar.value = false;
-  }
-};
 </script>
 
 <template>
   <v-container>
     <v-row justify="center">
-      <v-col cols="12" md="8">
+      <v-col cols="12" md="8" lg="6">
         <v-card class="pa-4 pa-md-6">
-          <v-card-title>Chỉnh sửa hồ sơ</v-card-title>
+          <v-card-title class="text-h5 mb-4">Edit Profile</v-card-title>
           <v-divider></v-divider>
 
           <v-card-text>
-            <v-row justify="center">
-              <v-col cols="12" sm="4" class="text-center">
-                <v-avatar
-                  size="120"
-                  class="mb-4 elevation-2"
-                  style="cursor: pointer"
-                  @click="triggerAvatarUpload"
-                  color="grey-lighten-3"
-                >
-                  <v-img
-                    :src="avatarPreview || userProfile?.profile?.avatarUrl"
+            <v-form @submit.prevent="onSubmit">
+              <v-row justify="center">
+                <v-col cols="12" sm="5" class="text-center">
+                  <v-avatar
+                    size="150"
+                    class="mb-4 elevation-3"
+                    color="grey-lighten-3"
                   >
-                    <template v-slot:placeholder>
-                      <v-icon size="60" color="grey">mdi-account-circle</v-icon>
-                    </template>
-                    <template v-slot:error>
-                       <v-icon size="60" color="grey">mdi-account-circle</v-icon>
-                    </template>
-                  </v-img>
-                  <v-overlay
-                    v-model="isUploadingAvatar"
-                    contained
-                    class="align-center justify-center"
-                    scrim="true"
-                  >
-                    <v-progress-circular
-                      indeterminate
-                      color="white"
-                    ></v-progress-circular>
-                  </v-overlay>
-                </v-avatar>
-                
-                <v-file-input
-                  ref="avatarInput"
-                  v-model="avatarFile"
-                  @update:modelValue="onFileChange"
-                  accept="image/*"
-                  class="d-none"
-                ></v-file-input>
-                
-                <v-btn
-                  :disabled="!avatarFile || avatarFile.length === 0 || isUploadingAvatar"
-                  :loading="isUploadingAvatar"
-                  @click="onUploadAvatar"
-                  color="primary"
-                  size="small"
-                  class="mt-2"
-                >
-                  Lưu Avatar
-                </v-btn>
-              </v-col>
-            </v-row>
+                    <v-img
+                      :src="avatarPreview || 'https://via.placeholder.com/150'"
+                      cover
+                    >
+                      <template v-slot:placeholder>
+                        <v-icon size="70" color="grey"
+                          >mdi-account-circle</v-icon
+                        >
+                      </template>
+                      <template v-slot:error>
+                        <v-icon size="70" color="grey"
+                          >mdi-account-circle</v-icon
+                        >
+                      </template>
+                    </v-img>
+                  </v-avatar>
 
-            <v-form @submit.prevent="onSubmit" class="mt-6">
-              <v-text-field
-                v-model="firstName"
-                label="First Name"
-                :error-messages="errors.firstName"
-                density="comfortable"
-                variant="outlined"
-              ></v-text-field>
+                  <v-file-input
+                    label="Choose new avatar"
+                    @update:modelValue="onFileChange"
+                    accept="image/*"
+                    :loading="isUploading"
+                    :disabled="isUploading || isSubmitting"
+                    variant="outlined"
+                    density="compact"
+                    prepend-icon="mdi-camera"
+                  ></v-file-input>
+                  </v-col>
+              </v-row>
 
-              <v-text-field
-                v-model="lastName"
-                label="Last Name"
-                :error-messages="errors.lastName"
-                density="comfortable"
-                variant="outlined"
-              ></v-text-field>
+              <v-divider class="my-6"></v-divider>
+              <h6 class="text-h6 mb-4">Personal Information</h6>
 
-              <v-text-field
-                v-model="dob"
-                label="Date of Birth"
-                :error-messages="errors.dob"
-                type="date"
-                density="comfortable"
-                variant="outlined"
-              ></v-text-field>
-
-              <v-text-field
-                v-model="city"
-                label="City"
-                :error-messages="errors.city"
-                density="comfortable"
-                variant="outlined"
-              ></v-text-field>
+              <v-row>
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="firstName"
+                    label="First Name"
+                    :error-messages="errors.firstName"
+                    density="comfortable"
+                    variant="outlined"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="lastName"
+                    label="Last Name"
+                    :error-messages="errors.lastName"
+                    density="comfortable"
+                    variant="outlined"
+                  ></v-text-field>
+                </v-col>
+              </v-row>
 
               <v-text-field
                 v-model="email"
@@ -235,9 +198,34 @@ const onUploadAvatar = async () => {
                 variant="outlined"
               ></v-text-field>
 
+              <v-row>
+                <v-col cols="12" sm="7">
+                  <v-text-field
+                    v-model="dob"
+                    label="Date of Birth"
+                    :error-messages="errors.dob"
+                    type="date"
+                    density="comfortable"
+                    variant="outlined"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="5">
+                  <v-text-field
+                    v-model="city"
+                    label="City"
+                    :error-messages="errors.city"
+                    density="comfortable"
+                    variant="outlined"
+                  ></v-text-field>
+                </v-col>
+              </v-row>
+
+              <v-divider class="my-6"></v-divider>
+              <h6 class="text-h6 mb-4">Change Password (Optional)</h6>
+
               <v-text-field
                 v-model="password"
-                label="New Password (optional)"
+                label="New Password"
                 :error-messages="errors.password"
                 type="password"
                 density="comfortable"
@@ -258,17 +246,19 @@ const onUploadAvatar = async () => {
                 <v-btn
                   variant="text"
                   @click="router.push({ name: 'Profile' })"
+                  :disabled="isSubmitting"
                 >
-                  Hủy
+                  Cancel
                 </v-btn>
                 <v-btn
                   type="submit"
                   color="primary"
                   :loading="isSubmitting"
-                  :disabled="isSubmitting"
+                  :disabled="isSubmitting || isUploading"
                   variant="flat"
+                  size="large"
                 >
-                  Lưu thay đổi
+                  Save Changes
                 </v-btn>
               </v-card-actions>
             </v-form>
