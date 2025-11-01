@@ -1,8 +1,7 @@
 import * as z from 'zod';
 
-// Helper function to validate YYYY-MM-DD
 const isValidDate = (dateString) => {
-  if (!dateString) return true; // Cho phép rỗng/null
+  if (!dateString) return true;
   if (
     typeof dateString !== 'string' ||
     !/^\d{4}-\d{2}-\d{2}$/.test(dateString)
@@ -10,11 +9,9 @@ const isValidDate = (dateString) => {
     return false;
   }
   const date = new Date(dateString);
-  // Kiểm tra ngày hợp lệ (vd: 2025-02-30 là sai)
   return !isNaN(date.getTime()) && date.toISOString().startsWith(dateString);
 };
 
-// SỬA LỖI: Export schema với tên đúng và logic đúng
 export const profileSchema = z
   .object({
     firstName: z.string().min(1, 'First name is required'),
@@ -25,13 +22,12 @@ export const profileSchema = z
       .refine(isValidDate, { message: 'Invalid date format' })
       .nullable(),
     city: z.string().nullable(),
-    // Logic upload mới: avatarUrl là một string (URL) và có thể null
-    avatarUrl: z.string().url('Invalid URL').nullable(),
+    avatarUrl: z.string().url('Avatar must be a valid URL').nullable(),
     password: z
       .string()
       .min(6, 'Password must be at least 6 characters')
       .optional()
-      .or(z.literal('')), // Cho phép chuỗi rỗng
+      .or(z.literal('')),
     confirmPassword: z
       .string()
       .min(6, 'Password must be at least 6 characters')
@@ -40,19 +36,17 @@ export const profileSchema = z
   })
   .refine(
     (data) => {
-      // Nếu nhập password, thì confirmPassword phải khớp
       if (data.password) {
         return data.password === data.confirmPassword;
       }
-      return true; // Bỏ qua nếu không nhập password
+      return true;
     },
     {
       message: 'Passwords do not match',
-      path: ['confirmPassword'] // Lỗi sẽ hiển thị ở trường confirmPassword
+      path: ['confirmPassword']
     }
   );
 
-// Giữ lại các schema cũ của bạn
 export const loginSchema = z.object({
   username: z.string().min(1, 'Username is required'),
   password: z.string().min(1, 'Password is required')
@@ -70,7 +64,10 @@ export const registerSchema = z
     email: z.string().email('Invalid email format'),
     dob: z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of birth must be in YYYY-MM-DD format')
+      .regex(
+        /^\d{4}-\d{2}-\d{2}$/,
+        'Date of birth must be in YYYY-MM-DD format'
+      )
       .refine(isValidDate, { message: 'Invalid date provided' }),
     city: z.string().optional()
   })

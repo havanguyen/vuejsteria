@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { jwtDecode } from 'jwt-decode';
-import { loginApi, logoutApi, refreshTokenApi, registerApi } from '@/api/authApi';
+import {
+  loginApi,
+  logoutApi,
+  refreshTokenApi,
+  registerApi
+} from '@/api/authApi';
 import { getMyInfoApi } from '@/api/userApi';
 import { getRolesFromScope } from '@/utils/authUtils';
 import { useNotificationStore } from './useNotificationStore';
@@ -48,7 +53,10 @@ export const useAuthStore = defineStore(
         try {
           await logoutApi(token.value);
         } catch (error) {
-          console.error('Logout API failed, logging out locally anyway.', error);
+          console.error(
+            'Logout API failed, logging out locally anyway.',
+            error
+          );
         }
       }
       token.value = null;
@@ -70,7 +78,7 @@ export const useAuthStore = defineStore(
         console.error('Failed to fetch full user info:', error);
         const notificationStore = useNotificationStore();
         notificationStore.showError(
-          'Could not load profile. Some info may be missing.' // Đã dịch
+          'Could not load profile. Some info may be missing.'
         );
 
         if (error.response && error.response.status === 401) {
@@ -107,6 +115,10 @@ export const useAuthStore = defineStore(
       }
     }
 
+    function setUser(newUserResponse) {
+      user.value = newUserResponse;
+    }
+
     async function hydrate() {
       if (token.value) {
         await fetchMyInfo();
@@ -127,7 +139,8 @@ export const useAuthStore = defineStore(
       fetchMyInfo,
       handleRefreshToken,
       setTokens,
-      hydrate
+      hydrate,
+      setUser
     };
   },
   {

@@ -1,3 +1,289 @@
+<template>
+  <v-container>
+    <v-row>
+      <v-col cols="12">
+        <v-btn
+          variant="text"
+          prepend-icon="mdi-chevron-left"
+          @click="router.push({ name: 'AdminUserList' })"
+          class="mb-4"
+        >
+          Back to User List
+        </v-btn>
+      </v-col>
+
+      <v-col cols="12" v-if="loading" class="text-center py-10">
+        <v-progress-circular
+          indeterminate
+          color="primary"
+          size="50"
+        ></v-progress-circular>
+      </v-col>
+
+      <v-col cols="12" v-else-if="error" class="text-center py-10">
+        <v-alert type="error" variant="tonal" class="mb-4">
+          {{ error }}
+        </v-alert>
+      </v-col>
+
+      <template v-else>
+        <v-col cols="12" md="4">
+          <v-card class="pa-4 pa-md-6 rounded-lg elevation-4">
+            <v-card-title class="text-h6 font-weight-bold mb-4">
+              Profile Picture
+            </v-card-title>
+            <v-card-text class="text-center">
+              <v-avatar
+                size="180"
+                class="elevation-2 mb-4"
+                color="grey-lighten-3"
+              >
+                <v-img
+                  :src="
+                    avatarUrl ||
+                    'https://via.placeholder.com/180/E0E0E0/FFFFFF?text=No+Avatar'
+                  "
+                  cover
+                >
+                  <template v-slot:placeholder>
+                    <v-icon size="80" color="grey-darken-1"
+                      >mdi-account-circle</v-icon
+                    >
+                  </template>
+                  <template v-slot:error>
+                    <v-icon size="80" color="grey-darken-1"
+                      >mdi-account-circle</v-icon
+                    >
+                  </template>
+                </v-img>
+              </v-avatar>
+
+              <input
+                type="file"
+                ref="fileInputRef"
+                @change="handleFileSelected"
+                accept="image/*"
+                hidden
+              />
+
+              <v-btn
+                @click="triggerFileInput"
+                color="primary"
+                variant="flat"
+                prepend-icon="mdi-camera"
+                :loading="isUploading"
+                :disabled="isUploading || isSubmitting"
+                class="mb-2 w-100"
+              >
+                Upload Image
+              </v-btn>
+
+              <v-text-field
+                v-model="avatarUrl"
+                label="Or paste Avatar URL"
+                :error-messages="errors.avatarUrl"
+                density="comfortable"
+                variant="outlined"
+                placeholder="Upload or paste URL"
+                clearable
+                prepend-inner-icon="mdi-link-variant"
+              ></v-text-field>
+            </v-card-text>
+          </v-card>
+        </v-col>
+
+        <v-col cols="12" md="8">
+          <v-card class="pa-4 pa-md-6 rounded-lg elevation-4">
+            <v-card-title class="text-h6 font-weight-bold mb-4">
+              User Details & Security
+            </v-card-title>
+            <v-card-text>
+              <v-form @submit.prevent="onSubmit">
+                <v-alert
+                  v-if="serverError"
+                  type="error"
+                  variant="tonal"
+                  density="compact"
+                  class="mb-4"
+                  closable
+                >
+                  {{ serverError }}
+                </v-alert>
+                <v-alert
+                  v-if="serverSuccess"
+                  type="success"
+                  variant="tonal"
+                  density="compact"
+                  class="mb-4"
+                  closable
+                >
+                  {{ serverSuccess }}
+                </v-alert>
+
+                <v-text-field
+                  :model-value="user?.id"
+                  label="User ID"
+                  readonly
+                  disabled
+                  variant="filled"
+                  density="comfortable"
+                  class="mb-4"
+                />
+                <v-text-field
+                  :model-value="user?.username"
+                  label="Username"
+                  readonly
+                  disabled
+                  variant="filled"
+                  density="comfortable"
+                  prepend-inner-icon="mdi-account"
+                  class="mb-4"
+                />
+
+                <v-row>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="firstName"
+                      label="First Name"
+                      :error-messages="errors.firstName"
+                      density="comfortable"
+                      variant="outlined"
+                      prepend-inner-icon="mdi-account-box-outline"
+                      clearable
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="lastName"
+                      label="Last Name"
+                      :error-messages="errors.lastName"
+                      density="comfortable"
+                      variant="outlined"
+                      prepend-inner-icon="mdi-account-box-outline"
+                      clearable
+                    ></v-text-field>
+                  </v-col>
+                </v-row>
+
+                <v-text-field
+                  v-model="email"
+                  label="Email Address"
+                  :error-messages="errors.email"
+                  type="email"
+                  density="comfortable"
+                  variant="outlined"
+                  prepend-inner-icon="mdi-email-outline"
+                  clearable
+                ></v-text-field>
+
+                <v-row>
+                  <v-col cols="12" sm="7">
+                    <v-menu
+                      v-model="dobMenu"
+                      :close-on-content-click="false"
+                      location="bottom start"
+                    >
+                      <template v-slot:activator="{ props }">
+                        <v-text-field
+                          v-model="dob"
+                          label="Date of Birth"
+                          :error-messages="errors.dob"
+                          readonly
+                          v-bind="props"
+                          density="comfortable"
+                          variant="outlined"
+                          prepend-inner-icon="mdi-calendar"
+                          clearable
+                          @click:clear="dob = null; dobForPicker = null"
+                        ></v-text-field>
+                      </template>
+                      <v-date-picker
+                        v-model="dobForPicker"
+                        @update:modelValue="updateDobField"
+                        show-adjacent-months
+                        hide-header
+                        color="primary"
+                      />
+                    </v-menu>
+                  </v-col>
+                  <v-col cols="12" sm="5">
+                    <v-text-field
+                      v-model="city"
+                      label="City"
+                      :error-messages="errors.city"
+                      density="comfortable"
+                      variant="outlined"
+                      prepend-inner-icon="mdi-city-outline"
+                      clearable
+                    ></v-text-field>
+                  </v-col>
+                </v-row>
+
+                <v-divider class="my-6"></v-divider>
+                <h6 class="text-h6 font-weight-medium mb-4">
+                  Access Control
+                </h6>
+                <v-text-field
+                  v-model="password"
+                  label="New Password"
+                  :error-messages="errors.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                  @click:append-inner="showPassword = !showPassword"
+                  density="comfortable"
+                  variant="outlined"
+                  prepend-inner-icon="mdi-lock-outline"
+                  placeholder="Leave blank to keep current password"
+                  clearable
+                ></v-text-field>
+
+                <v-select
+                  v-model="roles"
+                  :items="allRoles"
+                  label="Roles"
+                  multiple
+                  chips
+                  closable-chips
+                  prepend-inner-icon="mdi-shield-account-outline"
+                  :error-messages="errors.roles"
+                  :disabled="isSubmitting"
+                  class="mb-2"
+                  variant="outlined"
+                  density="comfortable"
+                />
+
+                <v-switch
+                  v-model="active"
+                  :label="active ? 'Active' : 'Inactive'"
+                  color="success"
+                  inset
+                  :error-messages="errors.active"
+                  :disabled="isSubmitting"
+                  class="mt-2"
+                />
+
+                <v-card-actions class="px-0 pt-4 d-flex justify-end">
+                  <v-btn
+                    type="submit"
+                    color="primary"
+                    :loading="isSubmitting"
+                    :disabled="isSubmitting || isUploading"
+                    variant="flat"
+                    size="large"
+                    prepend-icon="mdi-content-save-edit-outline"
+                  >
+                    Save Changes
+                  </v-btn>
+                </v-card-actions>
+              </v-form>
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </template>
+    </v-row>
+  </v-container>
+</template>
+
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -7,9 +293,14 @@ import { useForm, useField } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
 import { format, parseISO, isValid as isDateValid } from 'date-fns';
+import { useNotificationStore } from '@/stores/useNotificationStore';
+import { useLoadingStore } from '@/stores/useLoadingStore';
 
 const route = useRoute();
 const router = useRouter();
+const notificationStore = useNotificationStore();
+const loadingStore = useLoadingStore();
+
 const user = ref(null);
 const loading = ref(true);
 const error = ref(null);
@@ -21,8 +312,7 @@ const dobMenu = ref(false);
 const showPassword = ref(false);
 const allRoles = ref(['USER', 'ADMIN']);
 
-const avatarFileInput = ref([]);
-const avatarFileInputRef = ref(null);
+const fileInputRef = ref(null);
 
 const userId = computed(() => route.params.id);
 
@@ -36,7 +326,12 @@ const isValidDateFn = (dateString) => {
 const adminUpdateUserSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().email('Invalid email format').optional().nullable().or(z.literal('')),
+  email: z
+    .string()
+    .email('Invalid email format')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
   dob: z
     .string()
     .nullable()
@@ -56,10 +351,15 @@ const adminUpdateUserSchema = z.object({
     .nullable(),
   roles: z.array(z.string()).min(1, 'At least one role is required'),
   active: z.boolean(),
-  avatarUrl: z.string().url('Must be a valid URL').optional().nullable().or(z.literal(''))
+  avatarUrl: z
+    .string()
+    .url('Must be a valid URL')
+    .optional()
+    .nullable()
+    .or(z.literal(''))
 });
 
-const { handleSubmit, errors, setValues, resetForm } = useForm({
+const { handleSubmit, errors, setValues, resetForm, setFieldValue } = useForm({
   validationSchema: toTypedSchema(adminUpdateUserSchema),
   initialValues: {
     firstName: '',
@@ -84,19 +384,7 @@ const { value: roles } = useField('roles');
 const { value: active } = useField('active');
 const { value: avatarUrl } = useField('avatarUrl');
 
-const dobForPicker = computed({
-  get: () => {
-    try {
-      return dob.value ? parseISO(dob.value) : null;
-    } catch {
-      return null;
-    }
-  },
-  set: (val) => {
-    dob.value = val ? format(val, 'yyyy-MM-dd') : null;
-    dobMenu.value = false;
-  }
-});
+const dobForPicker = ref(null);
 
 const fetchUser = async () => {
   loading.value = true;
@@ -116,7 +404,9 @@ const fetchUser = async () => {
         firstName: data.profileResponse?.firstName || '',
         lastName: data.profileResponse?.lastName || '',
         email: data.profileResponse?.email || '',
-        dob: data.profileResponse?.dob || null,
+        dob: data.profileResponse?.dob
+          ? data.profileResponse.dob.split('T')[0]
+          : null,
         city: data.profileResponse?.city || '',
         password: '',
         roles: data.roles?.map((r) => r.name) || [],
@@ -124,6 +414,10 @@ const fetchUser = async () => {
         avatarUrl: data.profileResponse?.avatarUrl || ''
       }
     });
+    if (data.profileResponse?.dob) {
+      const parsedDate = parseISO(data.profileResponse.dob);
+      if (isDateValid(parsedDate)) dobForPicker.value = parsedDate;
+    }
   } catch (err) {
     console.error(`Failed to fetch user ${userId.value}:`, err);
     error.value = 'Could not load user details.';
@@ -133,33 +427,34 @@ const fetchUser = async () => {
   }
 };
 
-const triggerAvatarUpload = () => {
-  if (isUploading.value) return;
-  avatarFileInputRef.value.$el.querySelector('input').click();
+const triggerFileInput = () => {
+  fileInputRef.value.click();
 };
 
-const handleFileSelect = async (files) => {
-  const file = files[0];
+const handleFileSelected = async (event) => {
+  const file = event.target.files[0];
   if (!file) {
-    avatarFileInput.value = [];
     return;
   }
 
   isUploading.value = true;
-  serverError.value = null;
+  loadingStore.showLoading();
   const formData = new FormData();
   formData.append('file', file);
 
   try {
-    const uploadResult = await uploadImageApi(formData);
-    avatarUrl.value = uploadResult.url;
-    serverSuccess.value = "Tải ảnh thành công. Nhấn 'Save Changes' để áp dụng.";
+    const response = await uploadImageApi(formData);
+    setFieldValue('avatarUrl', response.url);
+    notificationStore.showSuccess(
+      'Avatar uploaded! Click Save Changes to apply.'
+    );
   } catch (err) {
-    serverError.value = 'Tải ảnh thất bại. Vui lòng thử lại.';
-    console.error('Failed to upload image:', err);
+    notificationStore.showError(err.message || 'Avatar upload failed', 5000);
+    setFieldValue('avatarUrl', null);
   } finally {
     isUploading.value = false;
-    avatarFileInput.value = [];
+    loadingStore.hideLoading();
+    event.target.value = null;
   }
 };
 
@@ -167,6 +462,7 @@ const onSubmit = handleSubmit(async (values) => {
   serverError.value = null;
   serverSuccess.value = null;
   isSubmitting.value = true;
+  loadingStore.showLoading();
   try {
     const updateData = { ...values };
     if (!updateData.password) {
@@ -189,7 +485,9 @@ const onSubmit = handleSubmit(async (values) => {
         firstName: updatedUser.profileResponse?.firstName || '',
         lastName: updatedUser.profileResponse?.lastName || '',
         email: updatedUser.profileResponse?.email || '',
-        dob: updatedUser.profileResponse?.dob || null,
+        dob: updatedUser.profileResponse?.dob
+          ? updatedUser.profileResponse.dob.split('T')[0]
+          : null,
         city: updatedUser.profileResponse?.city || '',
         password: '',
         roles: updatedUser.roles?.map((r) => r.name) || [],
@@ -198,15 +496,25 @@ const onSubmit = handleSubmit(async (values) => {
       },
       errors: {}
     });
-    serverSuccess.value = 'Cập nhật user thành công!';
+    if (updatedUser.profileResponse?.dob) {
+      const parsedDate = parseISO(updatedUser.profileResponse.dob);
+      if (isDateValid(parsedDate)) dobForPicker.value = parsedDate;
+    }
+    serverSuccess.value = 'User updated successfully!';
   } catch (err) {
     console.error('User update failed:', err);
     serverError.value =
       err?.title || err?.message || 'User update failed. Please try again.';
   } finally {
     isSubmitting.value = false;
+    loadingStore.hideLoading();
   }
 });
+
+const updateDobField = (newDate) => {
+  dob.value = newDate ? format(newDate, 'yyyy-MM-dd') : null;
+  dobMenu.value = false;
+};
 
 onMounted(fetchUser);
 
@@ -216,292 +524,3 @@ watch(userId, (newId, oldId) => {
   }
 });
 </script>
-
-<template>
-  <v-container>
-    <v-btn
-      @click="router.back()"
-      prepend-icon="mdi-arrow-left"
-      variant="text"
-      color="grey-darken-1"
-      class="mb-4"
-    >
-      Back to User List
-    </v-btn>
-
-    <v-card class="pa-4 pa-md-6">
-      <v-card-title
-        class="text-h5 font-weight-medium mb-4 d-flex align-center"
-      >
-        <v-icon start color="primary">mdi-account-edit</v-icon>
-        Edit User Details
-      </v-card-title>
-
-      <v-card-text>
-        <div v-if="loading" class="text-center py-10">
-          <v-progress-circular
-            indeterminate
-            color="primary"
-            size="50"
-          />
-        </div>
-        <v-alert v-else-if="error" type="error" variant="tonal" class="mb-4">
-          {{ error }}
-        </v-alert>
-        
-        <v-form v-else @submit.prevent="onSubmit">
-          <v-snackbar
-            v-model="serverSuccess"
-            color="success"
-            timeout="4000"
-            location="top right"
-            variant="tonal"
-          >
-            {{ serverSuccess }}
-            <template v-slot:actions>
-              <v-btn icon @click="serverSuccess = null" size="small"
-                ><v-icon>mdi-close</v-icon></v-btn
-              >
-            </template>
-          </v-snackbar>
-          <v-alert
-            v-if="serverError"
-            type="error"
-            variant="tonal"
-            density="compact"
-            class="mb-4"
-          >
-            {{ serverError }}
-          </v-alert>
-
-          <v-row>
-            <v-col cols="12" md="3" class="text-center align-self-start pt-6">
-              <v-avatar
-                size="120"
-                class="elevation-2"
-                color="grey-lighten-3"
-                style="cursor: pointer"
-                @click="triggerAvatarUpload"
-              >
-                 <v-img 
-                    :src="avatarUrl"
-                    :alt="user?.username"
-                    cover
-                  >
-                    <template v-slot:placeholder>
-                      <v-icon size="50" color="grey">mdi-account-circle</v-icon>
-                    </template>
-                    <template v-slot:error>
-                       <v-icon size="50" color="grey">mdi-account-circle</v-icon>
-                    </template>
-                  </v-img>
-                  
-                   <v-overlay
-                    v-model="isUploading"
-                    contained
-                    class="align-center justify-center"
-                    scrim="true"
-                  >
-                    <v-progress-circular
-                      indeterminate
-                      color="white"
-                    ></v-progress-circular>
-                  </v-overlay>
-              </v-avatar>
-              <div class="text-caption text-grey mt-2">Click to upload</div>
-              
-              <v-file-input
-                ref="avatarFileInputRef"
-                v-model="avatarFileInput"
-                class="d-none"
-                accept="image/*"
-                @update:modelValue="handleFileSelect"
-              />
-            </v-col>
-            
-            <v-col cols="12" md="9">
-              <v-text-field
-                :model-value="user?.id"
-                label="User ID"
-                readonly
-                disabled
-                variant="filled"
-                density="comfortable"
-              />
-              <v-text-field
-                :model-value="user?.username"
-                label="Username"
-                readonly
-                disabled
-                variant="filled"
-                density="comfortable"
-                prepend-inner-icon="mdi-account"
-                class="mt-4"
-              />
-            </v-col>
-          </v-row>
-
-          <v-text-field
-            v-model="avatarUrl"
-            label="Avatar URL"
-            prepend-inner-icon="mdi-link"
-            :error-messages="errors.avatarUrl"
-            :disabled="isSubmitting || isUploading"
-            variant="outlined"
-            density="comfortable"
-            placeholder="Upload image or paste URL"
-            clearable
-            class="mt-4"
-          />
-
-          <v-divider class="my-6"></v-divider>
-
-          <v-row>
-            <v-col cols="12" md="6">
-              <v-text-field
-                v-model="firstName"
-                label="First Name"
-                prepend-inner-icon="mdi-account-outline"
-                :error-messages="errors.firstName"
-                :disabled="isSubmitting"
-                class="mb-2"
-                variant="outlined"
-                density="comfortable"
-              />
-            </v-col>Do you see this?
-            <v-col cols="12" md="6">
-              <v-text-field
-                v-model="lastName"
-                label="Last Name"
-                prepend-inner-icon="mdi-account-outline"
-                :error-messages="errors.lastName"
-                :disabled="isSubmitting"
-                class="mb-2"
-                variant="outlined"
-                density="comfortable"
-              />
-            </v-col>
-          </v-row>
-
-          <v-text-field
-            v-model="email"
-            label="Email"
-            prepend-inner-icon="mdi-email-outline"
-            :error-messages="errors.email"
-            :disabled="isSubmitting"
-            class="mb-2"
-            variant="outlined"
-            density="comfortable"
-            type="email"
-          />
-
-          <v-row>
-            <v-col cols="12" md="6">
-              <v-menu
-                v-model="dobMenu"
-                :close-on-content-click="false"
-                location="bottom"
-              >
-                <template v-slot:activator="{ props }">
-                  <v-text-field
-                    v-model="dob"
-                    label="Date of Birth"
-                    prepend-inner-icon="mdi-calendar"
-                    readonly
-                    v-bind="props"
-                    :error-messages="errors.dob"
-                    :disabled="isSubmitting"
-                    placeholder="YYYY-MM-DD"
-                    class="mb-2"
-                    variant="outlined"
-                    density="comfortable"
-                    clearable
-                    @click:clear="dob = null"
-                  />
-                </template>
-                <v-date-picker
-                  v-model="dobForPicker"
-                  show-adjacent-months
-                  hide-header
-                  color="primary"
-                />
-              </v-menu>
-            </v-col>
-            <v-col cols="12" md="6">
-              <v-text-field
-                v-model="city"
-                label="City (Optional)"
-                prepend-inner-icon="mdi-city-variant-outline"
-                :error-messages="errors.city"
-                :disabled="isSubmitting"
-                class="mb-2"
-                variant="outlined"
-                density="comfortable"
-              />
-            </v-col>
-          </v-row>
-
-          <v-text-field
-            v-model="password"
-            label="New Password (optional)"
-            placeholder="Leave blank to keep current password"
-            :type="showPassword ? 'text' : 'password'"
-            prepend-inner-icon="mdi-lock-outline"
-            :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-            @click:append-inner="showPassword = !showPassword"
-            :error-messages="errors.password"
-            :disabled="isSubmitting"
-            class="mb-2"
-            variant="outlined"
-            density="comfortable"
-            clearable
-          />
-
-          <v-select
-            v-model="roles"
-            :items="allRoles"
-            label="Roles"
-            multiple
-            chips
-            closable-chips
-            prepend-inner-icon="mdi-shield-account-outline"
-            :error-messages="errors.roles"
-            :disabled="isSubmitting"
-            class="mb-2"
-            variant="outlined"
-            density="comfortable"
-          />
-
-          <v-switch
-            v-model="active"
-            :label="active ? 'Active' : 'Inactive'"
-            color="success"
-            inset
-            :error-messages="errors.active"
-            :disabled="isSubmitting"
-            class="mt-2"
-          />
-
-          <v-btn
-            type="submit"
-            color="primary"
-            size="large"
-            :loading="isSubmitting"
-            :disabled="isSubmitting"
-            class="mt-6"
-            prepend-icon="mdi-content-save-edit-outline"
-          >
-            Save Changes
-          </v-btn>
-        </v-form>
-      </v-card-text>
-    </v-card>
-  </v-container>
-</template>
-
-<style scoped>
-.v-text-field[readonly='true'] {
-  pointer-events: none;
-  background-color: #f5f5f5;
-}
-</style>

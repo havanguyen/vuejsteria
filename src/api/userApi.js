@@ -2,7 +2,10 @@ import axiosInstance from '@/config/axiosConfig';
 
 export const getMyInfoApi = async () => {
   try {
-    const response = await axiosInstance.get('/identity/users/my-info');
+    const cacheBust = new Date().getTime();
+    const response = await axiosInstance.get(
+      `/identity/users/my-info?_t=${cacheBust}`
+    );
     return response.data.result;
   } catch (error) {
     console.error('Failed to fetch user info:', error);
@@ -12,14 +15,16 @@ export const getMyInfoApi = async () => {
 
 export const updateMyInfoApi = async (userData) => {
   try {
-    const response = await axiosInstance.put(`/identity/users/my-info`, userData);
+    const response = await axiosInstance.put(
+      `/identity/users/my-info`,
+      userData
+    );
     return response.data.result;
   } catch (error) {
     console.error(`Failed to update my info:`, error);
     throw error.response?.data || error;
   }
 };
-
 
 export const getAllUsersApi = async () => {
   try {
@@ -43,7 +48,10 @@ export const getUserByIdApi = async (userId) => {
 
 export const updateUserByAdminApi = async (userId, userData) => {
   try {
-    const response = await axiosInstance.put(`/identity/users/${userId}`, userData);
+    const response = await axiosInstance.put(
+      `/identity/users/${userId}`,
+      userData
+    );
     return response.data.result;
   } catch (error) {
     console.error(`Failed to update user ${userId}:`, error);
@@ -56,7 +64,7 @@ export const deleteUserByAdminApi = async (userId) => {
     const response = await axiosInstance.delete(`/identity/users/${userId}`);
     return response.data.result;
   } catch (error) {
-     console.error(`Failed to delete user ${userId}:`, error);
-     throw error.response?.data || error;
+    console.error(`Failed to delete user ${userId}:`, error);
+    throw error.response?.data || error;
   }
 };

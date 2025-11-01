@@ -29,7 +29,7 @@
           <v-list-item :to="{ name: 'AdminUserList' }">
             <v-list-item-title>User Management</v-list-item-title>
           </v-list-item>
-          </v-list>
+        </v-list>
       </v-menu>
 
       <v-spacer></v-spacer>
@@ -47,12 +47,15 @@
             <v-btn v-bind="props" text>
               <v-avatar size="36" class="mr-2 elevation-1">
                 <v-img
-                  :src="user?.avatarUrl || 'https://via.placeholder.com/150'"
+                  :src="
+                    user?.profileResponse?.avatarUrl ||
+                    'https://via.placeholder.com/150'
+                  "
                   alt="Avatar"
                   cover
                 ></v-img>
               </v-avatar>
-              Hi, {{ user?.firstName || user?.username }}
+              Hi, {{ user?.profileResponse?.firstName || user?.username }}
               <v-icon right>mdi-menu-down</v-icon>
             </v-btn>
           </template>
@@ -92,7 +95,6 @@ import { useAuthStore } from '@/stores/useAuthStore';
 
 const router = useRouter();
 const authStore = useAuthStore();
-// Lấy cả user và isAuthenticated từ store
 const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
 
 const goToHome = () => {
