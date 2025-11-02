@@ -6,7 +6,7 @@
       permanent
       @click="rail = false"
       location="left"
-      color="transparent"
+      theme="light"
       class="admin-drawer glass-sidebar"
     >
       <v-list-item

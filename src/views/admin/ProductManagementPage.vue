@@ -1,392 +1,394 @@
 <template>
-  <ManagementPage
-    title="Products"
-    icon="mdi-book-open-page-variant"
-    :headers="headers"
-    :api="api"
-    :defaultItem="defaultItem"
-    dialogWidth="900px"
-    :onSave="onSave"
-    :onBeforeOpenDialog="onBeforeOpenDialog"
-    :onOpenDialog="handleOpenDialog"
-  >
-    <template #item.imageUrl="{ item }">
-      <v-avatar size="40" class="my-2" rounded="0">
-        <v-img
-          :src="item.imageUrl || 'https://via.placeholder.com/40x60'"
-          cover
-        >
-          <template v-slot:placeholder>
-            <v-icon>mdi-book</v-icon>
-          </template>
-        </v-img>
-        <v-tooltip activator="parent" location="end">
+  <div>
+    <ManagementPage
+      title="Products"
+      icon="mdi-book-open-page-variant"
+      :headers="headers"
+      :api="api"
+      :defaultItem="defaultItem"
+      dialogWidth="900px"
+      :onSave="onSave"
+      :onBeforeOpenDialog="onBeforeOpenDialog"
+      :onOpenDialog="handleOpenDialog"
+    >
+      <template #item.imageUrl="{ item }">
+        <v-avatar size="40" class="my-2" rounded="0">
           <v-img
             :src="item.imageUrl || 'https://via.placeholder.com/40x60'"
-            height="200"
-            width="140"
-            contain
-          ></v-img>
-        </v-tooltip>
-      </v-avatar>
-    </template>
-
-    <template #item.basePrice="{ item }">
-      {{ formatPrice(item.basePrice) }}
-      <div v-if="item.salePrice && item.salePrice > 0" class="text-caption text-error">
-        (Sale: {{ formatPrice(item.salePrice) }})
-      </div>
-    </template>
-
-    <template #item.author="{ item }">
-      {{ item.author?.name || 'N/A' }}
-    </template>
-
-    <template #item.publisher="{ item }">
-      {{ item.publisher?.name || 'N/A' }}
-    </template>
-
-    <template #form="{ editedItem, isSubmitting }">
-      <v-form>
-        <v-alert
-          v-if="formError"
-          type="error"
-          variant="tonal"
-          density="compact"
-          class="mb-4"
-          closable
-        >
-          {{ formError }}
-        </v-alert>
-
-        <v-row>
-          <v-col cols="12" md="4">
-            <ImageUploader
-              label="Book Cover"
-              v-model="imageUrl"
-              :aspectRatio="3 / 4"
-              placeholderIcon="mdi-book"
-            />
-          </v-col>
-          <v-col cols="12" md="8">
-            <v-text-field
-              v-model="title"
-              :error-messages="errors.title"
-              label="Book Title"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isSubmitting"
-            ></v-text-field>
-            
-            <v-text-field
-              v-model="isbn"
-              :error-messages="errors.isbn"
-              label="ISBN"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isSubmitting"
-            ></v-text-field>
-            <v-textarea
-              v-model="description"
-              :error-messages="errors.description"
-              label="Description"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isSubmitting"
-              rows="3"
-            ></v-textarea>
-          </v-col>
-        </v-row>
-
-        <v-divider class="my-4"></v-divider>
-
-        <v-row>
-          <v-col cols="12" sm="6" md="4">
-            <v-autocomplete
-              v-model="authorId"
-              :items="authorList"
-              item-title="name"
-              item-value="id"
-              :error-messages="errors.authorId"
-              label="Author"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isSubmitting"
-              :loading="loadingDependencies"
-            ></v-autocomplete>
-          </v-col>
-          <v-col cols="12" sm="6" md="4">
-            <v-autocomplete
-              v-model="publisherId"
-              :items="publisherList"
-              item-title="name"
-              item-value="id"
-              :error-messages="errors.publisherId"
-              label="Publisher"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isSubmitting"
-              :loading="loadingDependencies"
-            ></v-autocomplete>
-          </v-col>
-          <v-col cols="12" sm="6" md="4">
-            <v-text-field
-              v-model="publicationDate"
-              :error-messages="errors.publicationDate"
-              label="Publication Date"
-              type="date"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isSubmitting"
-            ></v-text-field>
-          </v-col>
-        </v-row>
-
-        <v-row>
-          <v-col cols="12" sm="6" md="4">
-            <v-text-field
-              v-model.number="basePrice"
-              :error-messages="errors.basePrice"
-              label="Base Price"
-              type="number"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isSubmitting"
-              prefix="₫"
-            ></v-text-field>
-          </v-col>
-          <v-col cols="12" sm="6" md="4">
-            <v-text-field
-              v-model.number="salePrice"
-              :error-messages="errors.salePrice"
-              label="Sale Price (Optional)"
-              type="number"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isSubmitting"
-              prefix="₫"
-            ></v-text-field>
-          </v-col>
-          <v-col cols="12" sm="6" md="4">
-            <v-text-field
-              v-model.number="pageCount"
-              :error-messages="errors.pageCount"
-              label="Page Count"
-              type="number"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isSubmitting"
-            ></v-text-field>
-          </v-col>
-        </v-row>
-        
-        <v-row>
-          <v-col cols="12">
-            <h6 class="text-subtitle-1 font-weight-medium mb-2">Sale Start Date & Time</h6>
-          </v-col>
-          <v-col cols="12" sm="6">
-            <v-menu
-              v-model="saleStartMenu"
-              :close-on-content-click="false"
-              location="bottom start"
-            >
-              <template v-slot:activator="{ props }">
-                <v-text-field
-                  v-model="saleStartDateOnly"
-                  label="Date (Ngày)"
-                  readonly
-                  v-bind="props"
-                  variant="outlined"
-                  density="comfortable"
-                  :disabled="isSubmitting"
-                  :error-messages="errors.saleStartDate"
-                  prepend-inner-icon="mdi-calendar"
-                  clearable
-                  @click:clear="saleStartDateOnly = ''; saleStartPicker = null;"
-                ></v-text-field>
-              </template>
-              <v-date-picker
-                v-model="saleStartPicker"
-                @update:modelValue="updateSaleStartDate"
-                show-adjacent-months
-                hide-header
-                color="primary"
+            cover
+          >
+            <template v-slot:placeholder>
+              <v-icon>mdi-book</v-icon>
+            </template>
+          </v-img>
+          <v-tooltip activator="parent" location="end">
+            <v-img
+              :src="item.imageUrl || 'https://via.placeholder.com/40x60'"
+              height="200"
+              width="140"
+              contain
+            ></v-img>
+          </v-tooltip>
+        </v-avatar>
+      </template>
+  
+      <template #item.basePrice="{ item }">
+        {{ formatPrice(item.basePrice) }}
+        <div v-if="item.salePrice && item.salePrice > 0" class="text-caption text-error">
+          (Sale: {{ formatPrice(item.salePrice) }})
+        </div>
+      </template>
+  
+      <template #item.author="{ item }">
+        {{ item.author?.name || 'N/A' }}
+      </template>
+  
+      <template #item.publisher="{ item }">
+        {{ item.publisher?.name || 'N/A' }}
+      </template>
+  
+      <template #form="{ editedItem, isSubmitting }">
+        <v-form>
+          <v-alert
+            v-if="formError"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+            closable
+          >
+            {{ formError }}
+          </v-alert>
+  
+          <v-row>
+            <v-col cols="12" md="4">
+              <ImageUploader
+                label="Book Cover"
+                v-model="imageUrl"
+                :aspectRatio="3 / 4"
+                placeholderIcon="mdi-book"
               />
-            </v-menu>
-          </v-col>
-          <v-col cols="12" sm="6">
-            <v-text-field
-              v-model="saleStartTimeOnly"
-              label="Time (Giờ:Phút) - Chọn tự động"
-              type="time"
-              variant="outlined"
-              density="comfortable"
+            </v-col>
+            <v-col cols="12" md="8">
+              <v-text-field
+                v-model="title"
+                :error-messages="errors.title"
+                label="Book Title"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+              ></v-text-field>
+              
+              <v-text-field
+                v-model="isbn"
+                :error-messages="errors.isbn"
+                label="ISBN"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+              ></v-text-field>
+              <v-textarea
+                v-model="description"
+                :error-messages="errors.description"
+                label="Description"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+                rows="3"
+              ></v-textarea>
+            </v-col>
+          </v-row>
+  
+          <v-divider class="my-4"></v-divider>
+  
+          <v-row>
+            <v-col cols="12" sm="6" md="4">
+              <v-autocomplete
+                v-model="authorId"
+                :items="authorList"
+                item-title="name"
+                item-value="id"
+                :error-messages="errors.authorId"
+                label="Author"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+                :loading="loadingDependencies"
+              ></v-autocomplete>
+            </v-col>
+            <v-col cols="12" sm="6" md="4">
+              <v-autocomplete
+                v-model="publisherId"
+                :items="publisherList"
+                item-title="name"
+                item-value="id"
+                :error-messages="errors.publisherId"
+                label="Publisher"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+                :loading="loadingDependencies"
+              ></v-autocomplete>
+            </v-col>
+            <v-col cols="12" sm="6" md="4">
+              <v-text-field
+                v-model="publicationDate"
+                :error-messages="errors.publicationDate"
+                label="Publication Date"
+                type="date"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+              ></v-text-field>
+            </v-col>
+          </v-row>
+  
+          <v-row>
+            <v-col cols="12" sm="6" md="4">
+              <v-text-field
+                v-model.number="basePrice"
+                :error-messages="errors.basePrice"
+                label="Base Price"
+                type="number"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+                prefix="₫"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="6" md="4">
+              <v-text-field
+                v-model.number="salePrice"
+                :error-messages="errors.salePrice"
+                label="Sale Price (Optional)"
+                type="number"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+                prefix="₫"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="6" md="4">
+              <v-text-field
+                v-model.number="pageCount"
+                :error-messages="errors.pageCount"
+                label="Page Count"
+                type="number"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+              ></v-text-field>
+            </v-col>
+          </v-row>
+          
+          <v-row>
+            <v-col cols="12">
+              <h6 class="text-subtitle-1 font-weight-medium mb-2">Sale Start Date & Time</h6>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-menu
+                v-model="saleStartMenu"
+                :close-on-content-click="false"
+                location="bottom start"
+              >
+                <template v-slot:activator="{ props }">
+                  <v-text-field
+                    v-model="saleStartDateOnly"
+                    label="Date (Ngày)"
+                    readonly
+                    v-bind="props"
+                    variant="outlined"
+                    density="comfortable"
+                    :disabled="isSubmitting"
+                    :error-messages="errors.saleStartDate"
+                    prepend-inner-icon="mdi-calendar"
+                    clearable
+                    @click:clear="saleStartDateOnly = ''; saleStartPicker = null;"
+                  ></v-text-field>
+                </template>
+                <v-date-picker
+                  v-model="saleStartPicker"
+                  @update:modelValue="updateSaleStartDate"
+                  show-adjacent-months
+                  hide-header
+                  color="primary"
+                />
+              </v-menu>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field
+                v-model="saleStartTimeOnly"
+                label="Time (Giờ:Phút) - Chọn tự động"
+                type="time"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+                :error-messages="errors.saleStartDate"
+                clearable
+              ></v-text-field>
+            </v-col>
+          </v-row>
+  
+          <v-row>
+            <v-col cols="12">
+              <h6 class="text-subtitle-1 font-weight-medium mb-2">Sale End Date & Time</h6>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-menu
+                v-model="saleEndMenu"
+                :close-on-content-click="false"
+                location="bottom start"
+              >
+                <template v-slot:activator="{ props }">
+                  <v-text-field
+                    v-model="saleEndDateOnly"
+                    label="Date (Ngày)"
+                    readonly
+                    v-bind="props"
+                    variant="outlined"
+                    density="comfortable"
+                    :disabled="isSubmitting"
+                    :error-messages="errors.saleEndDate"
+                    prepend-inner-icon="mdi-calendar"
+                    clearable
+                    @click:clear="saleEndDateOnly = ''; saleEndPicker = null;"
+                  ></v-text-field>
+                </template>
+                <v-date-picker
+                  v-model="saleEndPicker"
+                  @update:modelValue="updateSaleEndDate"
+                  show-adjacent-months
+                  hide-header
+                  color="primary"
+                />
+              </v-menu>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field
+                v-model="saleEndTimeOnly"
+                label="Time (Giờ:Phút) - Chọn tự động"
+                type="time"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+                :error-messages="errors.saleEndDate"
+                clearable
+              ></v-text-field>
+            </v-col>
+          </v-row>
+          <h6 class="text-h6 font-weight-medium mb-4 mt-2 d-flex align-center">
+            Product Attributes (Key-Value)
+            <v-spacer></v-spacer>
+            <v-btn
+              icon="mdi-plus"
+              size="small"
+              color="primary"
+              variant="tonal"
+              @click="openAttributeDialog()"
               :disabled="isSubmitting"
-              :error-messages="errors.saleStartDate"
-              clearable
-            ></v-text-field>
-          </v-col>
-        </v-row>
-
-        <v-row>
-          <v-col cols="12">
-            <h6 class="text-subtitle-1 font-weight-medium mb-2">Sale End Date & Time</h6>
-          </v-col>
-          <v-col cols="12" sm="6">
-            <v-menu
-              v-model="saleEndMenu"
-              :close-on-content-click="false"
-              location="bottom start"
             >
-              <template v-slot:activator="{ props }">
-                <v-text-field
-                  v-model="saleEndDateOnly"
-                  label="Date (Ngày)"
-                  readonly
-                  v-bind="props"
-                  variant="outlined"
-                  density="comfortable"
-                  :disabled="isSubmitting"
-                  :error-messages="errors.saleEndDate"
-                  prepend-inner-icon="mdi-calendar"
-                  clearable
-                  @click:clear="saleEndDateOnly = ''; saleEndPicker = null;"
-                ></v-text-field>
-              </template>
-              <v-date-picker
-                v-model="saleEndPicker"
-                @update:modelValue="updateSaleEndDate"
-                show-adjacent-months
-                hide-header
-                color="primary"
-              />
-            </v-menu>
-          </v-col>
-          <v-col cols="12" sm="6">
-            <v-text-field
-              v-model="saleEndTimeOnly"
-              label="Time (Giờ:Phút) - Chọn tự động"
-              type="time"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isSubmitting"
-              :error-messages="errors.saleEndDate"
-              clearable
-            ></v-text-field>
-          </v-col>
-        </v-row>
-        <h6 class="text-h6 font-weight-medium mb-4 mt-2 d-flex align-center">
-          Product Attributes (Key-Value)
+              <v-icon size="20">mdi-plus</v-icon>
+              <v-tooltip activator="parent" location="top">Add New Attribute</v-tooltip>
+            </v-btn>
+          </h6>
+  
+          <v-card variant="tonal" class="pa-0 mb-6" v-if="attributesArray.length > 0">
+            <v-list class="bg-transparent" lines="one" density="compact">
+              <v-list-item
+                v-for="(attr, index) in attributesArray"
+                :key="attr.key"
+                @click.stop="openAttributeDialog(attr, index)"
+                class="attribute-list-item"
+              >
+                <template v-slot:append>
+                  <v-btn
+                    icon="mdi-close"
+                    variant="text"
+                    size="small"
+                    color="red"
+                    @click.stop="deleteAttribute(index)"
+                  >
+                    <v-icon size="18"></v-icon>
+                    <v-tooltip activator="parent" location="top">Delete</v-tooltip>
+                  </v-btn>
+                </template>
+                <template v-slot:title>
+                  <span class="font-weight-medium text-primary">{{ attr.key }}</span>
+                </template>
+                <template v-slot:subtitle>
+                   <span class="text-medium-emphasis">Value: {{ attr.value }}</span>
+                </template>
+                <v-tooltip activator="parent" location="top">Click to Edit</v-tooltip>
+              </v-list-item>
+            </v-list>
+          </v-card>
+          <v-alert v-else type="info" variant="tonal" density="compact" class="mb-4">
+              No custom attributes added. Click '+' to add one.
+          </v-alert>
+          <v-autocomplete
+            v-model="categoryIds"
+            :items="categoryList"
+            item-title="name"
+            item-value="id"
+            :error-messages="errors.categoryIds"
+            label="Categories"
+            variant="outlined"
+            density="comfortable"
+            :disabled="isSubmitting"
+            multiple
+            chips
+            closable-chips
+          ></v-autocomplete>
+        </v-form>
+      </template>
+    </ManagementPage>
+    
+    <v-dialog v-model="attributeDialog" max-width="450px" persistent>
+      <v-card class="pa-2">
+        <v-card-title class="text-h5 font-weight-medium pa-4">
+          {{ editedAttributeIndex === -1 ? 'Add New Attribute' : 'Edit Attribute' }}
+        </v-card-title>
+        <v-divider></v-divider>
+        <v-card-text class="py-6">
+          <v-text-field
+            v-model="newAttribute.key"
+            label="Attribute Key (e.g., language, book_type)"
+            variant="outlined"
+            density="comfortable"
+            :disabled="editedAttributeIndex !== -1"
+            class="mb-4"
+            hide-details
+          ></v-text-field>
+          <v-text-field
+            v-model="newAttribute.value"
+            label="Attribute Value (e.g., Vietnamese, Hardcover)"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+          ></v-text-field>
+        </v-card-text>
+        <v-divider></v-divider>
+        <v-card-actions class="pa-4">
           <v-spacer></v-spacer>
           <v-btn
-            icon="mdi-plus"
-            size="small"
-            color="primary"
-            variant="tonal"
-            @click="openAttributeDialog()"
-            :disabled="isSubmitting"
+            color="blue-darken-1"
+            variant="text"
+            @click="closeAttributeDialog"
           >
-            <v-icon size="20">mdi-plus</v-icon>
-            <v-tooltip activator="parent" location="top">Add New Attribute</v-tooltip>
+            Cancel
           </v-btn>
-        </h6>
-
-        <v-card variant="tonal" class="pa-0 mb-6" v-if="attributesArray.length > 0">
-          <v-list class="bg-transparent" lines="one" density="compact">
-            <v-list-item
-              v-for="(attr, index) in attributesArray"
-              :key="attr.key"
-              @click.stop="openAttributeDialog(attr, index)"
-              class="attribute-list-item"
-            >
-              <template v-slot:append>
-                <v-btn
-                  icon="mdi-close"
-                  variant="text"
-                  size="small"
-                  color="red"
-                  @click.stop="deleteAttribute(index)"
-                >
-                  <v-icon size="18"></v-icon>
-                  <v-tooltip activator="parent" location="top">Delete</v-tooltip>
-                </v-btn>
-              </template>
-              <template v-slot:title>
-                <span class="font-weight-medium text-primary">{{ attr.key }}</span>
-              </template>
-              <template v-slot:subtitle>
-                 <span class="text-medium-emphasis">Value: {{ attr.value }}</span>
-              </template>
-              <v-tooltip activator="parent" location="top">Click to Edit</v-tooltip>
-            </v-list-item>
-          </v-list>
-        </v-card>
-        <v-alert v-else type="info" variant="tonal" density="compact" class="mb-4">
-            No custom attributes added. Click '+' to add one.
-        </v-alert>
-        <v-autocomplete
-          v-model="categoryIds"
-          :items="categoryList"
-          item-title="name"
-          item-value="id"
-          :error-messages="errors.categoryIds"
-          label="Categories"
-          variant="outlined"
-          density="comfortable"
-          :disabled="isSubmitting"
-          multiple
-          chips
-          closable-chips
-        ></v-autocomplete>
-      </v-form>
-    </template>
-  </ManagementPage>
-  
-  <v-dialog v-model="attributeDialog" max-width="450px" persistent>
-    <v-card class="pa-2">
-      <v-card-title class="text-h5 font-weight-medium pa-4">
-        {{ editedAttributeIndex === -1 ? 'Add New Attribute' : 'Edit Attribute' }}
-      </v-card-title>
-      <v-divider></v-divider>
-      <v-card-text class="py-6">
-        <v-text-field
-          v-model="newAttribute.key"
-          label="Attribute Key (e.g., language, book_type)"
-          variant="outlined"
-          density="comfortable"
-          :disabled="editedAttributeIndex !== -1"
-          class="mb-4"
-          hide-details
-        ></v-text-field>
-        <v-text-field
-          v-model="newAttribute.value"
-          label="Attribute Value (e.g., Vietnamese, Hardcover)"
-          variant="outlined"
-          density="comfortable"
-          hide-details
-        ></v-text-field>
-      </v-card-text>
-      <v-divider></v-divider>
-      <v-card-actions class="pa-4">
-        <v-spacer></v-spacer>
-        <v-btn
-          color="blue-darken-1"
-          variant="text"
-          @click="closeAttributeDialog"
-        >
-          Cancel
-        </v-btn>
-        <v-btn
-          color="primary"
-          variant="flat"
-          @click="saveAttribute"
-          :disabled="!newAttribute.key || !newAttribute.value"
-        >
-          Save
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+          <v-btn
+            color="primary"
+            variant="flat"
+            @click="saveAttribute"
+            :disabled="!newAttribute.key || !newAttribute.value"
+          >
+            Save
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </div>
 </template>
 
 <script setup>
@@ -454,16 +456,15 @@ const attributeDialog = ref(false);
 const newAttribute = ref({ key: '', value: '' });
 const editedAttributeIndex = ref(-1);
 
-// NEW: Local refs for Date/Time split and Menu management
-const saleStartDateOnly = ref(''); // YYYY-MM-DD string
-const saleStartTimeOnly = ref(''); // HH:MM string
-const saleEndDateOnly = ref(''); // YYYY-MM-DD string
-const saleEndTimeOnly = ref(''); // HH:MM string
+const saleStartDateOnly = ref('');
+const saleStartTimeOnly = ref('');
+const saleEndDateOnly = ref('');
+const saleEndTimeOnly = ref('');
 
 const saleStartMenu = ref(false);
 const saleEndMenu = ref(false);
-const saleStartPicker = ref(null); // Date object for picker
-const saleEndPicker = ref(null); // Date object for picker
+const saleStartPicker = ref(null);
+const saleEndPicker = ref(null);
 
 
 const slugify = (text) => {
@@ -478,7 +479,6 @@ const slugify = (text) => {
     .replace(/\s+/g, '-'); 
 };
 
-// Attribute Dialog functions
 const openAttributeDialog = (attr = { key: '', value: '' }, index = -1) => {
   newAttribute.value = JSON.parse(JSON.stringify(attr));
   editedAttributeIndex.value = index;
@@ -499,10 +499,8 @@ const saveAttribute = () => {
   const normalizedKey = slugify(newAttribute.value.key.toLowerCase());
 
   if (editedAttributeIndex.value > -1) {
-    // Update existing
     attributesArray.value[editedAttributeIndex.value].value = newAttribute.value.value;
   } else {
-    // Add new (check for duplicate key)
     if (attributesArray.value.some(attr => attr.key === normalizedKey)) {
         formError.value = `Attribute key '${newAttribute.value.key}' already exists. Please edit the existing one.`;
         return;
@@ -540,7 +538,6 @@ const productSchema = z.object({
   pageCount: z.number().int().min(0, 'Pages must be >= 0').optional().nullable(),
   basePrice: z.number().min(0, 'Price must be >= 0'),
   
-  // Validation for combined date/time string.
   salePrice: z.number().min(0, 'Sale Price must be >= 0').optional().nullable().or(z.literal(0)),
   saleStartDate: z
     .string()
@@ -584,7 +581,6 @@ watch(title, (newTitle) => {
   }
 });
 
-// Date Picker Update Functions
 const updateSaleStartDate = (newDate) => {
   saleStartDateOnly.value = newDate ? format(newDate, 'yyyy-MM-dd') : '';
   saleStartMenu.value = false;
@@ -597,17 +593,14 @@ const updateSaleEndDate = (newDate) => {
 
 
 const handleOpenDialog = (item) => {
-  // Reset attribute array first
   attributesArray.value = [];
   
   if (item && item.id) {
-    // Convert incoming attributes object to array format
     const attributesObj = item.attributes || {};
     for (const key in attributesObj) {
         attributesArray.value.push({ key: key, value: attributesObj[key] });
     }
 
-    // Split date/time strings for separate inputs
     const salesStart = item.saleStartDate?.substring(0, 16).split('T') || ['', ''];
     saleStartDateOnly.value = salesStart[0];
     saleStartTimeOnly.value = salesStart[1];
@@ -616,7 +609,6 @@ const handleOpenDialog = (item) => {
     saleEndDateOnly.value = salesEnd[0];
     saleEndTimeOnly.value = salesEnd[1];
 
-    // Set Date Picker refs for initial state
     if (salesStart[0]) {
         const parsedDate = parseISO(salesStart[0]);
         if (isDateValid(parsedDate)) saleStartPicker.value = parsedDate;
@@ -643,7 +635,6 @@ const handleOpenDialog = (item) => {
       slug: item.slug || slugify(item.title),
       salePrice: item.salePrice || 0,
       
-      // Set original values to prevent validation errors from undefined state
       saleStartDate: item.saleStartDate
         ? item.saleStartDate.substring(0, 16)
         : '',
@@ -651,14 +642,12 @@ const handleOpenDialog = (item) => {
         ? item.saleEndDate.substring(0, 16)
         : '',
     };
-    // Remove attributes field before setting form values, as it is managed separately
     delete itemToSet.attributes;
 
     setValues(itemToSet);
   } else {
     resetForm();
     slug.value = slugify(title.value);
-    // Reset local refs on new item
     saleStartDateOnly.value = '';
     saleStartTimeOnly.value = '';
     saleEndDateOnly.value = '';
@@ -689,10 +678,9 @@ const onBeforeOpenDialog = async () => {
 const onSave = async (editedItem, showError) => {
   formError.value = null;
 
-  // Combine separate Date and Time inputs back into main form fields for validation
   setFieldValue('saleStartDate', saleStartDateOnly.value && saleStartTimeOnly.value
     ? `${saleStartDateOnly.value}T${saleStartTimeOnly.value}`
-    : (saleStartDateOnly.value || '') // Allow partial input for Zod validation check
+    : (saleStartDateOnly.value || '')
     );
   setFieldValue('saleEndDate', saleEndDateOnly.value && saleEndTimeOnly.value
     ? `${saleEndDateOnly.value}T${saleEndTimeOnly.value}`
@@ -706,41 +694,31 @@ const onSave = async (editedItem, showError) => {
   
   const payload = { ...values };
 
-  // --- CLEANUP PAYLOAD ---
   payload.authorId = payload.authorId || null;
   payload.publisherId = payload.publisherId || null;
   payload.publicationDate = payload.publicationDate || null;
   payload.pageCount = payload.pageCount || 0;
   payload.basePrice = Number(payload.basePrice);
   
-  // Auto-generate/Ensure slug is present
   payload.slug = payload.slug || slugify(payload.title);
 
-  // Handle Sale Price
   payload.salePrice = Number(payload.salePrice) || null;
 
-  // FIX: Handle Sale Dates (Convert 'YYYY-MM-DDTHH:MM' to ISO string with +07:00 offset)
   const dateToIso = (dateString) => {
     if (!dateString) return null;
-    
-    // YYYY-MM-DDTHH:MM
     if (dateString.includes('T')) {
-        // Fix: Append :00 (seconds) and the required +07:00 (offset)
         return `${dateString}:00+07:00`;
     }
-    // YYYY-MM-DD
     const dateMatch = dateString.match(/^(\d{4}-\d{2}-\d{2})$/);
     if (dateMatch) {
-        // Nếu chỉ có ngày, assume midnight T00:00:00+07:00
         return `${dateMatch[0]}T00:00:00+07:00`;
     }
-    return null; // Trả về null nếu không khớp định dạng hợp lệ
+    return null;
   };
 
   payload.saleStartDate = dateToIso(payload.saleStartDate);
   payload.saleEndDate = dateToIso(payload.saleEndDate);
 
-  // Construct attributes JSON object from attributesArray
   const attributesObject = {};
   attributesArray.value.forEach(attr => {
     if (attr.key && attr.value) {
@@ -754,7 +732,6 @@ const onSave = async (editedItem, showError) => {
     delete payload.attributes;
   }
   
-  // Clean up optional fields if null or empty after processing
   if (!payload.salePrice) delete payload.salePrice;
   if (!payload.saleStartDate) delete payload.saleStartDate;
   if (!payload.saleEndDate) delete payload.saleEndDate;

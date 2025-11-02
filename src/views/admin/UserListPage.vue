@@ -293,154 +293,156 @@ const updateDobField = (newDate) => {
 </script>
 
 <template>
-  <v-container>
-    <v-card class="pa-4 pa-md-6" elevation="2">
-      <v-card-title class="text-h4 font-weight-medium mb-4 d-flex align-center">
-        <v-icon start color="primary" size="36">mdi-account-group</v-icon>
-        User Management
-      </v-card-title>
-      <v-card-text>
-        <v-alert
-          v-if="error"
-          type="error"
-          variant="tonal"
-          density="compact"
-          class="mb-4"
-        >
-          {{ error }}
-        </v-alert>
-
-        <v-text-field
-          v-model="search"
-          label="Search..."
-          prepend-inner-icon="mdi-magnify"
-          variant="outlined"
-          density="comfortable"
-          hide-details
-          class="mb-4"
-          style="max-width: 400px"
-        ></v-text-field>
-
-        <v-data-table
-          :headers="headers"
-          :items="users"
-          :loading="loading"
-          :search="search"
-          item-value="id"
-          class="elevation-0 border rounded-lg data-table-hover"
-          items-per-page="10"
-          hover
-        >
-          <template v-slot:[`item.profileResponse.avatarUrl`]="{ item }">
-            <v-avatar size="40" class="my-2" rounded="lg">
-              <v-img
-                :src="getFullAvatarUrl(item.profileResponse?.avatarUrl)"
-                alt="Avatar"
-                cover
-              >
-                <template v-slot:placeholder>
-                  <v-icon>mdi-account</v-icon>
-                </template>
-              </v-img>
-              <v-tooltip activator="parent" location="end">
+  <div> 
+    <v-container>
+      <v-card class="pa-4 pa-md-6" elevation="2">
+        <v-card-title class="text-h4 font-weight-medium mb-4 d-flex align-center">
+          <v-icon start color="primary" size="36">mdi-account-group</v-icon>
+          User Management
+        </v-card-title>
+        <v-card-text>
+          <v-alert
+            v-if="error"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+          >
+            {{ error }}
+          </v-alert>
+  
+          <v-text-field
+            v-model="search"
+            label="Search..."
+            prepend-inner-icon="mdi-magnify"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+            class="mb-4"
+            style="max-width: 400px"
+          ></v-text-field>
+  
+          <v-data-table
+            :headers="headers"
+            :items="users"
+            :loading="loading"
+            :search="search"
+            item-value="id"
+            class="elevation-0 border rounded-lg data-table-hover"
+            items-per-page="10"
+            hover
+          >
+            <template v-slot:[`item.profileResponse.avatarUrl`]="{ item }">
+              <v-avatar size="40" class="my-2" rounded="lg">
                 <v-img
                   :src="getFullAvatarUrl(item.profileResponse?.avatarUrl)"
-                  height="150"
-                  width="150"
-                  contain
-                  alt="Avatar preview"
-                ></v-img>
-              </v-tooltip>
-            </v-avatar>
-          </template>
-
-          <template v-slot:item.profileResponse\.firstName="{ item }">
-            <div class="d-flex align-center py-2">
-              <div>
-                <div class="font-weight-medium">
-                  {{ item.profileResponse?.firstName || '' }}
-                  {{ item.profileResponse?.lastName || '' }}
-                </div>
-                <div class="text-caption text-grey">
-                  {{ item.username }}
+                  alt="Avatar"
+                  cover
+                >
+                  <template v-slot:placeholder>
+                    <v-icon>mdi-account</v-icon>
+                  </template>
+                </v-img>
+                <v-tooltip activator="parent" location="end">
+                  <v-img
+                    :src="getFullAvatarUrl(item.profileResponse?.avatarUrl)"
+                    height="150"
+                    width="150"
+                    contain
+                    alt="Avatar preview"
+                  ></v-img>
+                </v-tooltip>
+              </v-avatar>
+            </template>
+  
+            <template v-slot:item.profileResponse\.firstName="{ item }">
+              <div class="d-flex align-center py-2">
+                <div>
+                  <div class="font-weight-medium">
+                    {{ item.profileResponse?.firstName || '' }}
+                    {{ item.profileResponse?.lastName || '' }}
+                  </div>
+                  <div class="text-caption text-grey">
+                    {{ item.username }}
+                  </div>
                 </div>
               </div>
-            </div>
-          </template>
-          <template v-slot:item.profileResponse\.email="{ item }">
-            {{ item.profileResponse?.email || '-' }}
-          </template>
-          <template v-slot:item.active="{ item }">
-            <v-chip
-              :color="item.active ? 'success' : 'error'"
-              size="small"
-              label
-            >
-              {{ item.active ? 'Active' : 'Inactive' }}
-            </v-chip>
-          </template>
-          <template v-slot:item.roles="{ item }">
-            <template v-if="item.roles && item.roles.length > 0">
+            </template>
+            <template v-slot:item.profileResponse\.email="{ item }">
+              {{ item.profileResponse?.email || '-' }}
+            </template>
+            <template v-slot:item.active="{ item }">
               <v-chip
-                v-for="role in item.roles"
-                :key="role.name"
-                :color="role.name === 'ADMIN' ? 'error' : 'primary'"
+                :color="item.active ? 'success' : 'error'"
                 size="small"
-                class="mr-1"
                 label
               >
-                {{ role.name }}
+                {{ item.active ? 'Active' : 'Inactive' }}
               </v-chip>
             </template>
-            <span v-else class="text-grey">-</span>
-          </template>
-
-          <template v-slot:item.actions="{ item }">
-            <div class="d-flex justify-end">
-              <v-btn
-                variant="tonal"
-                color="primary"
-                size="small"
-                class="me-2"
-                @click="editItem(item)"
-                prepend-icon="mdi-pencil"
-              >
-                Edit
-                <v-tooltip activator="parent" location="top">Edit</v-tooltip>
-              </v-btn>
-              <v-btn
-                variant="tonal"
-                :color="item.active ? 'red-darken-1' : 'success'"
-                size="small"
-                @click="confirmToggleActive(item)"
-                :prepend-icon="item.active ? 'mdi-power-off' : 'mdi-power-on'"
-              >
-                {{ item.active ? 'Deactivate' : 'Reactivate' }}
-                <v-tooltip activator="parent" location="top">{{ item.active ? 'Deactivate' : 'Reactivate' }}</v-tooltip>
-              </v-btn>
-            </div>
-          </template>
-
-          <template v-slot:loading>
-            <div class="d-flex justify-center align-center pa-5">
-              <v-progress-circular
-                indeterminate
-                color="primary"
-              ></v-progress-circular>
-            </div>
-          </template>
-          <template v-slot:no-data>
-            <div class="text-center pa-6 text-grey">
-              <v-icon size="large" class="mb-2"
-                >mdi-account-search-outline</v-icon
-              >
-              <div>No users found.</div>
-            </div>
-          </template>
-        </v-data-table>
-      </v-card-text>
-    </v-card>
-
+            <template v-slot:item.roles="{ item }">
+              <template v-if="item.roles && item.roles.length > 0">
+                <v-chip
+                  v-for="role in item.roles"
+                  :key="role.name"
+                  :color="role.name === 'ADMIN' ? 'error' : 'primary'"
+                  size="small"
+                  class="mr-1"
+                  label
+                >
+                  {{ role.name }}
+                </v-chip>
+              </template>
+              <span v-else class="text-grey">-</span>
+            </template>
+  
+            <template v-slot:item.actions="{ item }">
+              <div class="d-flex justify-end">
+                <v-btn
+                  variant="tonal"
+                  color="primary"
+                  size="small"
+                  class="me-2"
+                  @click="editItem(item)"
+                  prepend-icon="mdi-pencil"
+                >
+                  Edit
+                  <v-tooltip activator="parent" location="top">Edit</v-tooltip>
+                </v-btn>
+                <v-btn
+                  variant="tonal"
+                  :color="item.active ? 'red-darken-1' : 'success'"
+                  size="small"
+                  @click="confirmToggleActive(item)"
+                  :prepend-icon="item.active ? 'mdi-power-off' : 'mdi-power-on'"
+                >
+                  {{ item.active ? 'Deactivate' : 'Reactivate' }}
+                  <v-tooltip activator="parent" location="top">{{ item.active ? 'Deactivate' : 'Reactivate' }}</v-tooltip>
+                </v-btn>
+              </div>
+            </template>
+  
+            <template v-slot:loading>
+              <div class="d-flex justify-center align-center pa-5">
+                <v-progress-circular
+                  indeterminate
+                  color="primary"
+                ></v-progress-circular>
+              </div>
+            </template>
+            <template v-slot:no-data>
+              <div class="text-center pa-6 text-grey">
+                <v-icon size="large" class="mb-2"
+                  >mdi-account-search-outline</v-icon
+                >
+                <div>No users found.</div>
+              </div>
+            </template>
+          </v-data-table>
+        </v-card-text>
+      </v-card>
+    </v-container>
+  
     <v-dialog v-model="dialog" max-width="900px" persistent>
       <v-form @submit.prevent="onSubmit">
         <v-card class="pa-2">
@@ -448,7 +450,7 @@ const updateDobField = (newDate) => {
             {{ dialogTitle }}
           </v-card-title>
           <v-divider></v-divider>
-
+  
           <v-card-text style="max-height: 80vh; overflow-y: auto" class="py-6">
             <v-alert
               v-if="serverError"
@@ -460,7 +462,7 @@ const updateDobField = (newDate) => {
             >
               {{ serverError }}
             </v-alert>
-
+  
             <v-row>
               <v-col cols="12" md="4">
                 <ImageUploader
@@ -469,7 +471,7 @@ const updateDobField = (newDate) => {
                   placeholderIcon="mdi-account-circle"
                 />
               </v-col>
-
+  
               <v-col cols="12" md="8">
                 <v-text-field
                   :model-value="editedItem?.id"
@@ -490,7 +492,7 @@ const updateDobField = (newDate) => {
                   prepend-inner-icon="mdi-account"
                   class="mb-4"
                 />
-
+  
                 <v-row>
                   <v-col cols="12" sm="6">
                     <v-text-field
@@ -515,7 +517,7 @@ const updateDobField = (newDate) => {
                     ></v-text-field>
                   </v-col>
                 </v-row>
-
+  
                 <v-text-field
                   v-model="email"
                   label="Email Address"
@@ -526,7 +528,7 @@ const updateDobField = (newDate) => {
                   prepend-inner-icon="mdi-email-outline"
                   clearable
                 ></v-text-field>
-
+  
                 <v-row>
                   <v-col cols="12" sm="7">
                     <v-menu
@@ -569,7 +571,7 @@ const updateDobField = (newDate) => {
                     ></v-text-field>
                   </v-col>
                 </v-row>
-
+  
                 <v-divider class="my-6"></v-divider>
                 <h6 class="text-h6 font-weight-medium mb-4">
                   Access Control
@@ -587,7 +589,7 @@ const updateDobField = (newDate) => {
                   placeholder="Leave blank to keep current password"
                   clearable
                 ></v-text-field>
-
+  
                 <v-select
                   v-model="roles"
                   :items="allRoles"
@@ -602,7 +604,7 @@ const updateDobField = (newDate) => {
                   variant="outlined"
                   density="comfortable"
                 />
-
+  
                 <v-switch
                   v-model="active"
                   :label="active ? 'Active' : 'Inactive'"
@@ -615,7 +617,7 @@ const updateDobField = (newDate) => {
               </v-col>
             </v-row>
           </v-card-text>
-
+  
           <v-divider></v-divider>
           <v-card-actions class="pa-4">
             <v-spacer></v-spacer>
@@ -640,7 +642,7 @@ const updateDobField = (newDate) => {
         </v-card>
       </v-form>
     </v-dialog>
-
+  
     <v-dialog v-model="deleteDialog" max-width="450px">
       <v-card class="pa-2">
         <v-card-title class="text-h5"
@@ -667,7 +669,7 @@ const updateDobField = (newDate) => {
         </v-card-actions>
       </v-card>
     </v-dialog>
-  </v-container>
+  </div>
 </template>
 
 <style>
