@@ -19,12 +19,44 @@
           <h1 class="text-h3 font-weight-bold mb-2" style="text-shadow: none">
             {{ product.title }}
           </h1>
-          <h2 class="text-h6 font-weight-medium text-medium-emphasis mb-4">
+          <h2
+            v-if="product.author?.name"
+            class="text-h6 font-weight-medium text-medium-emphasis mb-4"
+          >
             Tác giả: {{ product.author.name }}
           </h2>
-          <div class="text-h4 font-weight-bold text-error mb-6">
-            {{ formatPrice(product.basePrice) }}
+
+          <div class="mb-4">
+            <div v-if="isSelling" class="d-flex align-center">
+              <div class="text-subtitle-1 text-grey me-3" style="text-decoration: line-through;">
+                {{ formatPrice(product.basePrice) }}
+              </div>
+              <div class="text-h4 font-weight-bold text-error">
+                {{ formatPrice(product.salePrice) }}
+              </div>
+              <v-chip
+                color="red-lighten-1"
+                size="small"
+                variant="flat"
+                class="ml-3 font-weight-bold"
+              >
+                SALE
+              </v-chip>
+            </div>
+            <div v-else class="text-h4 font-weight-bold text-error">
+              {{ formatPrice(product.basePrice) }}
+            </div>
           </div>
+          <v-alert
+            v-if="isSelling && formattedSaleEndDate"
+            type="warning"
+            density="compact"
+            variant="tonal"
+            class="mb-6"
+            icon="mdi-clock-end"
+          >
+            Ưu đãi kết thúc vào: {{ formattedSaleEndDate }}
+          </v-alert>
           <p class="text-body-1 mb-8" style="text-shadow: none">
             {{ product.description }}
           </p>
@@ -56,6 +88,7 @@
         <v-window-item value="details">
           <v-list lines="one" class="bg-transparent">
             <v-list-item
+              v-if="product.publisher?.name"
               title="Nhà xuất bản"
               :subtitle="product.publisher.name"
             ></v-list-item>
@@ -72,7 +105,20 @@
               :subtitle="product.isbn"
             ></v-list-item>
           </v-list>
-        </v-window-item>
+          
+          <v-divider v-if="attributesArray.length > 0" class="my-4"></v-divider>
+          <h4 v-if="attributesArray.length > 0" class="text-h6 font-weight-medium mb-3">
+            Thông tin thêm
+          </h4>
+          <v-list v-if="attributesArray.length > 0" lines="one" class="bg-transparent">
+            <v-list-item
+              v-for="attr in attributesArray"
+              :key="attr.key"
+              :title="attr.key"
+              :subtitle="attr.value"
+            ></v-list-item>
+          </v-list>
+          </v-window-item>
 
         <v-window-item value="reviews">
           <p>Chưa có đánh giá nào cho sản phẩm này.</p>
@@ -87,10 +133,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { getProductByIdApi } from '@/api/productApi';
 import { useLoadingStore } from '@/stores/useLoadingStore';
+import { format } from 'date-fns';
 
 const route = useRoute();
 const loadingStore = useLoadingStore();
@@ -106,6 +153,63 @@ const formatPrice = (value) => {
     currency: 'VND'
   }).format(value);
 };
+
+// --- NEW/MODIFIED COMPUTED PROPERTIES ---
+
+// Check if the product is currently on sale
+const isSelling = computed(() => {
+  const productData = product.value;
+  if (
+    !productData ||
+    !productData.salePrice ||
+    productData.salePrice <= 0 ||
+    productData.salePrice >= productData.basePrice
+  ) {
+    return false;
+  }
+
+  // MODIFIED LOGIC: Check if sale end date has passed
+  if (productData.saleEndDate) {
+    const saleEndTime = new Date(productData.saleEndDate);
+    const currentTime = new Date();
+    
+    // Sale has ended if currentTime >= saleEndTime
+    if (currentTime.getTime() >= saleEndTime.getTime()) {
+      return false; 
+    }
+  }
+
+  return true;
+});
+
+// Format sale end date for display
+const formattedSaleEndDate = computed(() => {
+  const dateString = product.value?.saleEndDate;
+  if (!dateString) return null;
+  
+  try {
+    // format date for local display
+    return format(new Date(dateString), 'dd/MM/yyyy HH:mm:ss');
+  } catch (e) {
+    console.error("Failed to format sale end date:", e);
+    return dateString.split('T')[0]; // Fallback to just the date part
+  }
+});
+
+// Transform attributes object to an array for v-for loop
+const attributesArray = computed(() => {
+  const attributesObj = product.value?.attributes;
+  if (!attributesObj || typeof attributesObj !== 'object') return [];
+  
+  return Object.keys(attributesObj).map(key => ({
+    // Chuyển key từ snake_case hoặc camelCase thành Title Case để hiển thị
+    key: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    value: attributesObj[key]
+  }));
+});
+
+// --- END NEW/MODIFIED COMPUTED PROPERTIES ---
+
 
 onMounted(async () => {
   loadingStore.showLoading();

@@ -8,10 +8,19 @@
     >
       <v-img
         :src="product.imageUrl || 'https://via.placeholder.com/300'"
-        height="250px"
+        aspect-ratio="0.75" 
         cover
-        aspect-ratio="1"
       >
+        <v-chip
+          v-if="isSelling"
+          color="red-lighten-1"
+          size="small"
+          variant="flat"
+          class="ma-2 font-weight-bold"
+          style="position: absolute; top: 0; right: 0; z-index: 10"
+        >
+          SALE
+        </v-chip>
         <v-fade-transition>
           <div
             v-if="isHovering"
@@ -34,12 +43,20 @@
         {{ product.title }}
       </v-card-title>
 
-      <v-card-subtitle class="pb-2">
+      <v-card-subtitle v-if="author" class="pb-2">
         {{ author }}
       </v-card-subtitle>
 
       <v-card-text class="pt-0 pb-3">
-        <div class="text-h6 font-weight-bold text-error">
+        <div v-if="isSelling" class="d-flex align-baseline">
+          <div class="text-h6 font-weight-bold text-error me-2">
+            {{ formatPrice(product.salePrice) }}
+          </div>
+          <div class="text-caption text-grey" style="text-decoration: line-through;">
+            {{ formatPrice(product.basePrice) }}
+          </div>
+        </div>
+        <div v-else class="text-h6 font-weight-bold text-error">
           {{ formatPrice(product.basePrice) }}
         </div>
       </v-card-text>
@@ -68,13 +85,48 @@ const author = computed(() => {
   if (props.product.author && props.product.author.name) {
     return props.product.author.name; // Cấu trúc từ ProductResponse (Product Service)
   }
-  return 'N/A';
+  return null; // Trả về null thay vì 'N/A'
 });
 
 const productLink = computed(() => ({
   name: 'ProductDetail',
   params: { id: props.product.id }
 }));
+
+// NEW/MODIFIED: Logic kiểm tra Sale
+const isSelling = computed(() => {
+  const productData = props.product;
+  if (
+    !productData.salePrice ||
+    productData.salePrice <= 0 ||
+    productData.salePrice >= productData.basePrice
+  ) {
+    return false;
+  }
+
+  // Check if sale end date has passed
+  if (productData.saleEndDate) {
+    const saleEndTime = new Date(productData.saleEndDate);
+    const currentTime = new Date();
+    
+    // Sale has ended if currentTime >= saleEndTime
+    if (currentTime.getTime() >= saleEndTime.getTime()) {
+      return false; 
+    }
+  }
+
+  // Check if sale start date has started (optional check, assuming backend handles this)
+  if (productData.saleStartDate) {
+    const saleStartTime = new Date(productData.saleStartDate);
+    const currentTime = new Date();
+    if (currentTime.getTime() < saleStartTime.getTime()) {
+      return false; 
+    }
+  }
+
+  return true;
+});
+
 
 const formatPrice = (value) => {
   if (!value) return '0 ₫';

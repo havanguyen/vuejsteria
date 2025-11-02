@@ -1,7 +1,7 @@
 <template>
   <div v-if="loadingStore.isLoading">
     <v-row>
-      <v-col v-for="n in 9" :key="n" cols="12" sm="6" md="4">
+      <v-col v-for="n in 9" :key="n" cols="12" sm="6" md="3">
         <v-skeleton-loader type="image, article, button"></v-skeleton-loader>
       </v-col>
     </v-row>
@@ -13,7 +13,7 @@
         :key="product.id"
         cols="12"
         sm="6"
-        md="4"
+        md="3"
       >
         <ProductCard :product="product" />
       </v-col>
@@ -28,13 +28,13 @@
     ></v-pagination>
   </div>
   <v-alert v-else type="info" variant="tonal" class="mt-4">
-    Không tìm thấy sản phẩm nào.
+    No products found.
   </v-alert>
 </template>
 
 <script setup>
 import ProductCard from './ProductCard.vue';
-import { useLoadingStore } from '@/stores/useLoadingStore';
+import { useLoadingStore }from '@/stores/useLoadingStore';
 
 const loadingStore = useLoadingStore();
 

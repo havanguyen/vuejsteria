@@ -33,6 +33,9 @@
 
     <template #item.basePrice="{ item }">
       {{ formatPrice(item.basePrice) }}
+      <div v-if="item.salePrice && item.salePrice > 0" class="text-caption text-error">
+        (Sale: {{ formatPrice(item.salePrice) }})
+      </div>
     </template>
 
     <template #item.author="{ item }">
@@ -74,6 +77,7 @@
               density="comfortable"
               :disabled="isSubmitting"
             ></v-text-field>
+            
             <v-text-field
               v-model="isbn"
               :error-messages="errors.isbn"
@@ -153,6 +157,18 @@
           </v-col>
           <v-col cols="12" sm="6" md="4">
             <v-text-field
+              v-model.number="salePrice"
+              :error-messages="errors.salePrice"
+              label="Sale Price (Optional)"
+              type="number"
+              variant="outlined"
+              density="comfortable"
+              :disabled="isSubmitting"
+              prefix="₫"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6" md="4">
+            <v-text-field
               v-model.number="pageCount"
               :error-messages="errors.pageCount"
               label="Page Count"
@@ -163,7 +179,151 @@
             ></v-text-field>
           </v-col>
         </v-row>
+        
+        <v-row>
+          <v-col cols="12">
+            <h6 class="text-subtitle-1 font-weight-medium mb-2">Sale Start Date & Time</h6>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-menu
+              v-model="saleStartMenu"
+              :close-on-content-click="false"
+              location="bottom start"
+            >
+              <template v-slot:activator="{ props }">
+                <v-text-field
+                  v-model="saleStartDateOnly"
+                  label="Date (Ngày)"
+                  readonly
+                  v-bind="props"
+                  variant="outlined"
+                  density="comfortable"
+                  :disabled="isSubmitting"
+                  :error-messages="errors.saleStartDate"
+                  prepend-inner-icon="mdi-calendar"
+                  clearable
+                  @click:clear="saleStartDateOnly = ''; saleStartPicker = null;"
+                ></v-text-field>
+              </template>
+              <v-date-picker
+                v-model="saleStartPicker"
+                @update:modelValue="updateSaleStartDate"
+                show-adjacent-months
+                hide-header
+                color="primary"
+              />
+            </v-menu>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="saleStartTimeOnly"
+              label="Time (Giờ:Phút) - Chọn tự động"
+              type="time"
+              variant="outlined"
+              density="comfortable"
+              :disabled="isSubmitting"
+              :error-messages="errors.saleStartDate"
+              clearable
+            ></v-text-field>
+          </v-col>
+        </v-row>
 
+        <v-row>
+          <v-col cols="12">
+            <h6 class="text-subtitle-1 font-weight-medium mb-2">Sale End Date & Time</h6>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-menu
+              v-model="saleEndMenu"
+              :close-on-content-click="false"
+              location="bottom start"
+            >
+              <template v-slot:activator="{ props }">
+                <v-text-field
+                  v-model="saleEndDateOnly"
+                  label="Date (Ngày)"
+                  readonly
+                  v-bind="props"
+                  variant="outlined"
+                  density="comfortable"
+                  :disabled="isSubmitting"
+                  :error-messages="errors.saleEndDate"
+                  prepend-inner-icon="mdi-calendar"
+                  clearable
+                  @click:clear="saleEndDateOnly = ''; saleEndPicker = null;"
+                ></v-text-field>
+              </template>
+              <v-date-picker
+                v-model="saleEndPicker"
+                @update:modelValue="updateSaleEndDate"
+                show-adjacent-months
+                hide-header
+                color="primary"
+              />
+            </v-menu>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="saleEndTimeOnly"
+              label="Time (Giờ:Phút) - Chọn tự động"
+              type="time"
+              variant="outlined"
+              density="comfortable"
+              :disabled="isSubmitting"
+              :error-messages="errors.saleEndDate"
+              clearable
+            ></v-text-field>
+          </v-col>
+        </v-row>
+        <h6 class="text-h6 font-weight-medium mb-4 mt-2 d-flex align-center">
+          Product Attributes (Key-Value)
+          <v-spacer></v-spacer>
+          <v-btn
+            icon="mdi-plus"
+            size="small"
+            color="primary"
+            variant="tonal"
+            @click="openAttributeDialog()"
+            :disabled="isSubmitting"
+          >
+            <v-icon size="20">mdi-plus</v-icon>
+            <v-tooltip activator="parent" location="top">Add New Attribute</v-tooltip>
+          </v-btn>
+        </h6>
+
+        <v-card variant="tonal" class="pa-0 mb-6" v-if="attributesArray.length > 0">
+          <v-list class="bg-transparent" lines="one" density="compact">
+            <v-list-item
+              v-for="(attr, index) in attributesArray"
+              :key="attr.key"
+              @click.stop="openAttributeDialog(attr, index)"
+              class="attribute-list-item"
+            >
+              <template v-slot:append>
+                <v-btn
+                  icon="mdi-close"
+                  variant="text"
+                  size="small"
+                  color="red"
+                  @click.stop="deleteAttribute(index)"
+                >
+                  <v-icon size="18"></v-icon>
+                  <v-tooltip activator="parent" location="top">Delete</v-tooltip>
+                </v-btn>
+              </template>
+              <template v-slot:title>
+                <span class="font-weight-medium text-primary">{{ attr.key }}</span>
+              </template>
+              <template v-slot:subtitle>
+                 <span class="text-medium-emphasis">Value: {{ attr.value }}</span>
+              </template>
+              <v-tooltip activator="parent" location="top">Click to Edit</v-tooltip>
+            </v-list-item>
+          </v-list>
+        </v-card>
+        <v-alert v-else type="info" variant="tonal" density="compact" class="mb-4">
+            No custom attributes added. Click '+' to add one.
+        </v-alert>
         <v-autocomplete
           v-model="categoryIds"
           :items="categoryList"
@@ -174,7 +334,6 @@
           variant="outlined"
           density="comfortable"
           :disabled="isSubmitting"
-          :loading="loadingDependencies"
           multiple
           chips
           closable-chips
@@ -182,15 +341,62 @@
       </v-form>
     </template>
   </ManagementPage>
+  
+  <v-dialog v-model="attributeDialog" max-width="450px" persistent>
+    <v-card class="pa-2">
+      <v-card-title class="text-h5 font-weight-medium pa-4">
+        {{ editedAttributeIndex === -1 ? 'Add New Attribute' : 'Edit Attribute' }}
+      </v-card-title>
+      <v-divider></v-divider>
+      <v-card-text class="py-6">
+        <v-text-field
+          v-model="newAttribute.key"
+          label="Attribute Key (e.g., language, book_type)"
+          variant="outlined"
+          density="comfortable"
+          :disabled="editedAttributeIndex !== -1"
+          class="mb-4"
+          hide-details
+        ></v-text-field>
+        <v-text-field
+          v-model="newAttribute.value"
+          label="Attribute Value (e.g., Vietnamese, Hardcover)"
+          variant="outlined"
+          density="comfortable"
+          hide-details
+        ></v-text-field>
+      </v-card-text>
+      <v-divider></v-divider>
+      <v-card-actions class="pa-4">
+        <v-spacer></v-spacer>
+        <v-btn
+          color="blue-darken-1"
+          variant="text"
+          @click="closeAttributeDialog"
+        >
+          Cancel
+        </v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          @click="saveAttribute"
+          :disabled="!newAttribute.key || !newAttribute.value"
+        >
+          Save
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import ManagementPage from './shared/ManagementPage.vue';
 import ImageUploader from './shared/ImageUploader.vue';
 import { useForm, useField } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
+import { format, parseISO, isValid as isDateValid } from 'date-fns';
 import {
   getProductsApi,
   createProductApi,
@@ -231,6 +437,9 @@ const defaultItem = ref({
   publicationDate: '',
   pageCount: 0,
   basePrice: 0,
+  salePrice: null,
+  saleStartDate: '',
+  saleEndDate: '',
   categoryIds: [],
 });
 
@@ -240,10 +449,80 @@ const publisherList = ref([]);
 const categoryList = ref([]);
 const loadingDependencies = ref(false);
 
+const attributesArray = ref([]);
+const attributeDialog = ref(false);
+const newAttribute = ref({ key: '', value: '' });
+const editedAttributeIndex = ref(-1);
+
+// NEW: Local refs for Date/Time split and Menu management
+const saleStartDateOnly = ref(''); // YYYY-MM-DD string
+const saleStartTimeOnly = ref(''); // HH:MM string
+const saleEndDateOnly = ref(''); // YYYY-MM-DD string
+const saleEndTimeOnly = ref(''); // HH:MM string
+
+const saleStartMenu = ref(false);
+const saleEndMenu = ref(false);
+const saleStartPicker = ref(null); // Date object for picker
+const saleEndPicker = ref(null); // Date object for picker
+
+
+const slugify = (text) => {
+  if (!text) return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .normalize('NFD') 
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-'); 
+};
+
+// Attribute Dialog functions
+const openAttributeDialog = (attr = { key: '', value: '' }, index = -1) => {
+  newAttribute.value = JSON.parse(JSON.stringify(attr));
+  editedAttributeIndex.value = index;
+  attributeDialog.value = true;
+};
+
+const closeAttributeDialog = () => {
+  attributeDialog.value = false;
+  newAttribute.value = { key: '', value: '' };
+  editedAttributeIndex.value = -1;
+};
+
+const saveAttribute = () => {
+  if (!newAttribute.value.key || !newAttribute.value.value) {
+    return;
+  }
+
+  const normalizedKey = slugify(newAttribute.value.key.toLowerCase());
+
+  if (editedAttributeIndex.value > -1) {
+    // Update existing
+    attributesArray.value[editedAttributeIndex.value].value = newAttribute.value.value;
+  } else {
+    // Add new (check for duplicate key)
+    if (attributesArray.value.some(attr => attr.key === normalizedKey)) {
+        formError.value = `Attribute key '${newAttribute.value.key}' already exists. Please edit the existing one.`;
+        return;
+    }
+    attributesArray.value.push({ key: normalizedKey, value: newAttribute.value.value });
+  }
+  formError.value = null;
+  closeAttributeDialog();
+};
+
+const deleteAttribute = (index) => {
+  attributesArray.value.splice(index, 1);
+};
+
+
 const productSchema = z.object({
   title: z.string().min(1, 'Book title is required'),
-  isbn: z.string().optional(),
-  description: z.string().optional(),
+  slug: z.string().optional(),
+  isbn: z.string().optional().nullable().or(z.literal('')),
+  description: z.string().optional().nullable().or(z.literal('')),
   imageUrl: z
     .string()
     .url('Invalid image URL')
@@ -256,18 +535,36 @@ const productSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be in YYYY-MM-DD format')
     .optional()
-    .nullable(),
+    .nullable()
+    .or(z.literal('')),
   pageCount: z.number().int().min(0, 'Pages must be >= 0').optional().nullable(),
   basePrice: z.number().min(0, 'Price must be >= 0'),
+  
+  // Validation for combined date/time string.
+  salePrice: z.number().min(0, 'Sale Price must be >= 0').optional().nullable().or(z.literal(0)),
+  saleStartDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, 'Date & Time must be in YYYY-MM-DDTHH:MM format or empty')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
+  saleEndDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, 'Date & Time must be in YYYY-MM-DDTHH:MM format or empty')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
+  
   categoryIds: z.array(z.string()).optional(),
 });
 
-const { errors, setValues, resetForm, validate, values } = useForm({
+const { errors, setValues, resetForm, validate, values, setFieldValue } = useForm({
   validationSchema: toTypedSchema(productSchema),
   initialValues: defaultItem.value,
 });
 
 const { value: title } = useField('title');
+const { value: slug } = useField('slug');
 const { value: isbn } = useField('isbn');
 const { value: description } = useField('description');
 const { value: imageUrl } = useField('imageUrl');
@@ -276,11 +573,66 @@ const { value: publisherId } = useField('publisherId');
 const { value: publicationDate } = useField('publicationDate');
 const { value: pageCount } = useField('pageCount');
 const { value: basePrice } = useField('basePrice');
+const { value: salePrice } = useField('salePrice');
+const { value: saleStartDate } = useField('saleStartDate');
+const { value: saleEndDate } = useField('saleEndDate');
 const { value: categoryIds } = useField('categoryIds');
 
+watch(title, (newTitle) => {
+  if (!values.id) {
+    slug.value = slugify(newTitle);
+  }
+});
+
+// Date Picker Update Functions
+const updateSaleStartDate = (newDate) => {
+  saleStartDateOnly.value = newDate ? format(newDate, 'yyyy-MM-dd') : '';
+  saleStartMenu.value = false;
+};
+
+const updateSaleEndDate = (newDate) => {
+  saleEndDateOnly.value = newDate ? format(newDate, 'yyyy-MM-dd') : '';
+  saleEndMenu.value = false;
+};
+
+
 const handleOpenDialog = (item) => {
+  // Reset attribute array first
+  attributesArray.value = [];
+  
   if (item && item.id) {
-    setValues({
+    // Convert incoming attributes object to array format
+    const attributesObj = item.attributes || {};
+    for (const key in attributesObj) {
+        attributesArray.value.push({ key: key, value: attributesObj[key] });
+    }
+
+    // Split date/time strings for separate inputs
+    const salesStart = item.saleStartDate?.substring(0, 16).split('T') || ['', ''];
+    saleStartDateOnly.value = salesStart[0];
+    saleStartTimeOnly.value = salesStart[1];
+
+    const salesEnd = item.saleEndDate?.substring(0, 16).split('T') || ['', ''];
+    saleEndDateOnly.value = salesEnd[0];
+    saleEndTimeOnly.value = salesEnd[1];
+
+    // Set Date Picker refs for initial state
+    if (salesStart[0]) {
+        const parsedDate = parseISO(salesStart[0]);
+        if (isDateValid(parsedDate)) saleStartPicker.value = parsedDate;
+    } else {
+        saleStartPicker.value = null;
+    }
+    
+    if (salesEnd[0]) {
+        const parsedDate = parseISO(salesEnd[0]);
+        if (isDateValid(parsedDate)) saleEndPicker.value = parsedDate;
+    } else {
+        saleEndPicker.value = null;
+    }
+
+
+    const itemToSet = {
       ...item,
       authorId: item.author?.id,
       publisherId: item.publisher?.id,
@@ -288,9 +640,31 @@ const handleOpenDialog = (item) => {
       publicationDate: item.publicationDate
         ? item.publicationDate.split('T')[0]
         : '',
-    });
+      slug: item.slug || slugify(item.title),
+      salePrice: item.salePrice || 0,
+      
+      // Set original values to prevent validation errors from undefined state
+      saleStartDate: item.saleStartDate
+        ? item.saleStartDate.substring(0, 16)
+        : '',
+      saleEndDate: item.saleEndDate
+        ? item.saleEndDate.substring(0, 16)
+        : '',
+    };
+    // Remove attributes field before setting form values, as it is managed separately
+    delete itemToSet.attributes;
+
+    setValues(itemToSet);
   } else {
     resetForm();
+    slug.value = slugify(title.value);
+    // Reset local refs on new item
+    saleStartDateOnly.value = '';
+    saleStartTimeOnly.value = '';
+    saleEndDateOnly.value = '';
+    saleEndTimeOnly.value = '';
+    saleStartPicker.value = null;
+    saleEndPicker.value = null;
   }
 };
 
@@ -315,6 +689,16 @@ const onBeforeOpenDialog = async () => {
 const onSave = async (editedItem, showError) => {
   formError.value = null;
 
+  // Combine separate Date and Time inputs back into main form fields for validation
+  setFieldValue('saleStartDate', saleStartDateOnly.value && saleStartTimeOnly.value
+    ? `${saleStartDateOnly.value}T${saleStartTimeOnly.value}`
+    : (saleStartDateOnly.value || '') // Allow partial input for Zod validation check
+    );
+  setFieldValue('saleEndDate', saleEndDateOnly.value && saleEndTimeOnly.value
+    ? `${saleEndDateOnly.value}T${saleEndTimeOnly.value}`
+    : (saleEndDateOnly.value || '')
+    );
+  
   const { valid } = await validate();
   if (!valid) {
     return false;
@@ -322,8 +706,62 @@ const onSave = async (editedItem, showError) => {
   
   const payload = { ...values };
 
+  // --- CLEANUP PAYLOAD ---
+  payload.authorId = payload.authorId || null;
+  payload.publisherId = payload.publisherId || null;
   payload.publicationDate = payload.publicationDate || null;
   payload.pageCount = payload.pageCount || 0;
+  payload.basePrice = Number(payload.basePrice);
+  
+  // Auto-generate/Ensure slug is present
+  payload.slug = payload.slug || slugify(payload.title);
+
+  // Handle Sale Price
+  payload.salePrice = Number(payload.salePrice) || null;
+
+  // FIX: Handle Sale Dates (Convert 'YYYY-MM-DDTHH:MM' to ISO string with +07:00 offset)
+  const dateToIso = (dateString) => {
+    if (!dateString) return null;
+    
+    // YYYY-MM-DDTHH:MM
+    if (dateString.includes('T')) {
+        // Fix: Append :00 (seconds) and the required +07:00 (offset)
+        return `${dateString}:00+07:00`;
+    }
+    // YYYY-MM-DD
+    const dateMatch = dateString.match(/^(\d{4}-\d{2}-\d{2})$/);
+    if (dateMatch) {
+        // Nếu chỉ có ngày, assume midnight T00:00:00+07:00
+        return `${dateMatch[0]}T00:00:00+07:00`;
+    }
+    return null; // Trả về null nếu không khớp định dạng hợp lệ
+  };
+
+  payload.saleStartDate = dateToIso(payload.saleStartDate);
+  payload.saleEndDate = dateToIso(payload.saleEndDate);
+
+  // Construct attributes JSON object from attributesArray
+  const attributesObject = {};
+  attributesArray.value.forEach(attr => {
+    if (attr.key && attr.value) {
+      attributesObject[attr.key] = attr.value;
+    }
+  });
+
+  if (Object.keys(attributesObject).length > 0) {
+    payload.attributes = attributesObject;
+  } else {
+    delete payload.attributes;
+  }
+  
+  // Clean up optional fields if null or empty after processing
+  if (!payload.salePrice) delete payload.salePrice;
+  if (!payload.saleStartDate) delete payload.saleStartDate;
+  if (!payload.saleEndDate) delete payload.saleEndDate;
+  if (payload.isbn === '') payload.isbn = null;
+  if (payload.description === '') payload.description = null;
+  if (payload.imageUrl === '') payload.imageUrl = null;
+
 
   try {
     if (editedItem.id) {
@@ -347,3 +785,17 @@ const formatPrice = (value) => {
   }).format(value);
 };
 </script>
+
+<style scoped>
+.attribute-list-item {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+.attribute-list-item:hover {
+  background-color: rgba(var(--v-theme-primary), 0.05) !important;
+}
+.attribute-list-item:last-child {
+    border-bottom: none;
+}
+</style>

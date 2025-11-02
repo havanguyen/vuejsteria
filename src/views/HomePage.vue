@@ -1,7 +1,22 @@
 <template>
   <v-container class="py-4 px-8">
+    <v-alert
+      type="info"
+      variant="tonal"
+      class="mb-6 elevation-2"
+      color="primary"
+      icon="mdi-fire"
+    >
+      <div class="text-h6 font-weight-bold text-primary">
+        🔥 FLASH SALE ALERT!
+      </div>
+      <div class="text-body-2">
+        Thousands of featured products are on discount. Don't miss out!
+      </div>
+    </v-alert>
+    
     <h1 class="text-h4 font-weight-bold mb-6" style="text-shadow: none">
-      Sản phẩm nổi bật
+      Featured Products
     </h1>
     <ProductGrid
       :products="products"
