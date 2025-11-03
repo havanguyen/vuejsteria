@@ -21,6 +21,13 @@ const loading = ref(true);
 const error = ref(null);
 const search = ref('');
 
+const pagination = ref({
+  page: 1,
+  size: 10,
+  totalPages: 0,
+  totalElements: 0,
+});
+
 const dialog = ref(false);
 const dialogTitle = computed(() =>
   editedItem.value.id ? 'Edit User' : 'Create User'
@@ -49,20 +56,29 @@ const getFullAvatarUrl = (url) => {
   return url.startsWith('http') ? url : `${import.meta.env.VITE_API_BASE_URL}/${url}`;
 };
 
-const fetchUsers = async () => {
+const loadUsers = async ({ page, itemsPerPage, sortBy }) => {
   loading.value = true;
   error.value = null;
   try {
-    const data = await getAllUsersApi();
+    const sort = sortBy.length
+      ? `${sortBy[0].key},${sortBy[0].order}`
+      : 'id,desc';
+    
+    const apiPage = page - 1;
+
+    const data = await getAllUsersApi(apiPage, itemsPerPage, sort);
+    
     users.value = data.content;
+    pagination.value.totalElements = data.totalElements;
+    pagination.value.totalPages = data.totalPages;
+    pagination.value.page = data.pageable?.pageNumber + 1 || page;
+    pagination.value.size = data.pageable?.pageSize || itemsPerPage;
   } catch (err) {
     error.value = 'Could not load users.';
   } finally {
     loading.value = false;
   }
 };
-
-onMounted(fetchUsers);
 
 const editItem = (item) => {
   editedIndex.value = users.value.findIndex((u) => u.id === item.id);
@@ -86,7 +102,6 @@ const toggleActiveStatus = async () => {
 
   try {
     if (isCurrentlyActive) {
-      // 1. DEACTIVATE: Dùng DELETE API (API docs nói nó chuyển sang inactive)
       await deleteUserByAdminApi(targetUserId);
       
       if (index !== -1) {
@@ -95,18 +110,16 @@ const toggleActiveStatus = async () => {
       notificationStore.showSuccess('User deactivated successfully.'); 
       
     } else {
-      // 2. REACTIVATE: Dùng PUT API (Cập nhật isActive: true)
       
       const fullUser = users.value[index];
       
-      // Tạo payload cần thiết cho UserUpdateRequest (bao gồm các trường bắt buộc)
       const updateData = {
         firstName: fullUser.profileResponse?.firstName || '',
         lastName: fullUser.profileResponse?.lastName || '',
         email: fullUser.profileResponse?.email || '',
         
         roles: fullUser.roles.map(r => r.name), 
-        isActive: true, // <-- Đã đổi từ 'active' sang 'isActive'
+        isActive: true, 
         
         password: '', 
         dob: fullUser.profileResponse?.dob ? fullUser.profileResponse.dob.split('T')[0] : null,
@@ -182,7 +195,7 @@ const adminUpdateUserSchema = z.object({
     .optional()
     .nullable(),
   roles: z.array(z.string()).min(1, 'At least one role is required'),
-  active: z.boolean(), // Vẫn giữ active ở FE để binding với v-switch
+  active: z.boolean(), 
   avatarUrl: z
     .string()
     .url('Must be a valid URL')
@@ -247,7 +260,6 @@ const onSubmit = handleSubmit(async (values) => {
   try {
     const updateData = { ...values };
     
-    // ÁNH XẠ: Đổi 'active' thành 'isActive' cho payload backend
     if (updateData.active !== undefined) {
         updateData.isActive = updateData.active;
         delete updateData.active;
@@ -256,7 +268,6 @@ const onSubmit = handleSubmit(async (values) => {
     if (!updateData.password) {
       delete updateData.password;
     }
-    // Xóa/Null các trường chuỗi rỗng
     if (updateData.dob === '') {
       updateData.dob = null;
     }
@@ -272,7 +283,6 @@ const onSubmit = handleSubmit(async (values) => {
       updateData
     );
 
-    // Cập nhật đối tượng trong danh sách
     Object.assign(users.value[editedIndex.value], updatedUser);
     notificationStore.showSuccess('User updated successfully!');
     close();
@@ -322,14 +332,15 @@ const updateDobField = (newDate) => {
             style="max-width: 400px"
           ></v-text-field>
   
-          <v-data-table
+          <v-data-table-server
+            v-model:items-per-page="pagination.size"
             :headers="headers"
             :items="users"
+            :items-length="pagination.totalElements"
             :loading="loading"
-            :search="search"
             item-value="id"
             class="elevation-0 border rounded-lg data-table-hover"
-            items-per-page="10"
+            @update:options="loadUsers"
             hover
           >
             <template v-slot:[`item.profileResponse.avatarUrl`]="{ item }">
@@ -438,7 +449,7 @@ const updateDobField = (newDate) => {
                 <div>No users found.</div>
               </div>
             </template>
-          </v-data-table>
+          </v-data-table-server>
         </v-card-text>
       </v-card>
     </v-container>

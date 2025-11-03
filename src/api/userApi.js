@@ -26,9 +26,15 @@ export const updateMyInfoApi = async (userData) => {
   }
 };
 
-export const getAllUsersApi = async () => {
+export const getAllUsersApi = async (
+  page = 0,
+  size = 10,
+  sort = 'id,desc'
+) => {
   try {
-    const response = await axiosInstance.get('/identity/users');
+    const response = await axiosInstance.get(
+      `/identity/users?page=${page}&size=${size}&sort=${sort}`
+    );
     return response.data.result;
   } catch (error) {
     console.error('Failed to fetch users:', error);
