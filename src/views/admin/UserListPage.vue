@@ -54,7 +54,7 @@ const fetchUsers = async () => {
   error.value = null;
   try {
     const data = await getAllUsersApi();
-    users.value = data;
+    users.value = data.content;
   } catch (err) {
     error.value = 'Could not load users.';
   } finally {
