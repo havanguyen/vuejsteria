@@ -31,22 +31,25 @@
           </v-tooltip>
         </v-avatar>
       </template>
-  
+
       <template #item.basePrice="{ item }">
         {{ formatPrice(item.basePrice) }}
-        <div v-if="item.salePrice && item.salePrice > 0" class="text-caption text-error">
+        <div
+          v-if="item.salePrice && item.salePrice > 0"
+          class="text-caption text-error"
+        >
           (Sale: {{ formatPrice(item.salePrice) }})
         </div>
       </template>
-  
+
       <template #item.author="{ item }">
         {{ item.author?.name || 'N/A' }}
       </template>
-  
+
       <template #item.publisher="{ item }">
         {{ item.publisher?.name || 'N/A' }}
       </template>
-  
+
       <template #form="{ editedItem, isSubmitting }">
         <v-form>
           <v-alert
@@ -59,7 +62,7 @@
           >
             {{ formError }}
           </v-alert>
-  
+
           <v-row>
             <v-col cols="12" md="4">
               <ImageUploader
@@ -78,7 +81,7 @@
                 density="comfortable"
                 :disabled="isSubmitting"
               ></v-text-field>
-              
+
               <v-text-field
                 v-model="isbn"
                 :error-messages="errors.isbn"
@@ -98,9 +101,9 @@
               ></v-textarea>
             </v-col>
           </v-row>
-  
+
           <v-divider class="my-4"></v-divider>
-  
+
           <v-row>
             <v-col cols="12" sm="6" md="4">
               <v-autocomplete
@@ -142,9 +145,9 @@
               ></v-text-field>
             </v-col>
           </v-row>
-  
+
           <v-row>
-            <v-col cols="12" sm="6" md="4">
+            <v-col cols="12" sm="6" md="3">
               <v-text-field
                 v-model.number="basePrice"
                 :error-messages="errors.basePrice"
@@ -156,7 +159,7 @@
                 prefix="₫"
               ></v-text-field>
             </v-col>
-            <v-col cols="12" sm="6" md="4">
+            <v-col cols="12" sm="6" md="3">
               <v-text-field
                 v-model.number="salePrice"
                 :error-messages="errors.salePrice"
@@ -168,7 +171,7 @@
                 prefix="₫"
               ></v-text-field>
             </v-col>
-            <v-col cols="12" sm="6" md="4">
+            <v-col cols="12" sm="6" md="3">
               <v-text-field
                 v-model.number="pageCount"
                 :error-messages="errors.pageCount"
@@ -179,11 +182,25 @@
                 :disabled="isSubmitting"
               ></v-text-field>
             </v-col>
+            <v-col cols="12" sm="6" md="3">
+              <v-text-field
+                v-model.number="stock"
+                :error-messages="errors.stock"
+                label="Stock Quantity"
+                type="number"
+                variant="outlined"
+                density="comfortable"
+                :disabled="isSubmitting"
+                prepend-inner-icon="mdi-package-variant"
+              ></v-text-field>
+            </v-col>
           </v-row>
-          
+
           <v-row>
             <v-col cols="12">
-              <h6 class="text-subtitle-1 font-weight-medium mb-2">Sale Start Date & Time</h6>
+              <h6 class="text-subtitle-1 font-weight-medium mb-2">
+                Sale Start Date & Time
+              </h6>
             </v-col>
             <v-col cols="12" sm="6">
               <v-menu
@@ -203,7 +220,10 @@
                     :error-messages="errors.saleStartDate"
                     prepend-inner-icon="mdi-calendar"
                     clearable
-                    @click:clear="saleStartDateOnly = ''; saleStartPicker = null;"
+                    @click:clear="
+                      saleStartDateOnly = '';
+                      saleStartPicker = null;
+                    "
                   ></v-text-field>
                 </template>
                 <v-date-picker
@@ -228,10 +248,12 @@
               ></v-text-field>
             </v-col>
           </v-row>
-  
+
           <v-row>
             <v-col cols="12">
-              <h6 class="text-subtitle-1 font-weight-medium mb-2">Sale End Date & Time</h6>
+              <h6 class="text-subtitle-1 font-weight-medium mb-2">
+                Sale End Date & Time
+              </h6>
             </v-col>
             <v-col cols="12" sm="6">
               <v-menu
@@ -251,7 +273,10 @@
                     :error-messages="errors.saleEndDate"
                     prepend-inner-icon="mdi-calendar"
                     clearable
-                    @click:clear="saleEndDateOnly = ''; saleEndPicker = null;"
+                    @click:clear="
+                      saleEndDateOnly = '';
+                      saleEndPicker = null;
+                    "
                   ></v-text-field>
                 </template>
                 <v-date-picker
@@ -288,11 +313,17 @@
               :disabled="isSubmitting"
             >
               <v-icon size="20">mdi-plus</v-icon>
-              <v-tooltip activator="parent" location="top">Add New Attribute</v-tooltip>
+              <v-tooltip activator="parent" location="top"
+                >Add New Attribute</v-tooltip
+              >
             </v-btn>
           </h6>
-  
-          <v-card variant="tonal" class="pa-0 mb-6" v-if="attributesArray.length > 0">
+
+          <v-card
+            variant="tonal"
+            class="pa-0 mb-6"
+            v-if="attributesArray.length > 0"
+          >
             <v-list class="bg-transparent" lines="one" density="compact">
               <v-list-item
                 v-for="(attr, index) in attributesArray"
@@ -309,21 +340,35 @@
                     @click.stop="deleteAttribute(index)"
                   >
                     <v-icon size="18"></v-icon>
-                    <v-tooltip activator="parent" location="top">Delete</v-tooltip>
+                    <v-tooltip activator="parent" location="top"
+                      >Delete</v-tooltip
+                    >
                   </v-btn>
                 </template>
                 <template v-slot:title>
-                  <span class="font-weight-medium text-primary">{{ attr.key }}</span>
+                  <span class="font-weight-medium text-primary">{{
+                    attr.key
+                  }}</span>
                 </template>
                 <template v-slot:subtitle>
-                   <span class="text-medium-emphasis">Value: {{ attr.value }}</span>
+                  <span class="text-medium-emphasis"
+                    >Value: {{ attr.value }}</span
+                  >
                 </template>
-                <v-tooltip activator="parent" location="top">Click to Edit</v-tooltip>
+                <v-tooltip activator="parent" location="top"
+                  >Click to Edit</v-tooltip
+                >
               </v-list-item>
             </v-list>
           </v-card>
-          <v-alert v-else type="info" variant="tonal" density="compact" class="mb-4">
-              No custom attributes added. Click '+' to add one.
+          <v-alert
+            v-else
+            type="info"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+          >
+            No custom attributes added. Click '+' to add one.
           </v-alert>
           <v-autocomplete
             v-model="categoryIds"
@@ -342,7 +387,7 @@
         </v-form>
       </template>
     </ManagementPage>
-    
+
     <v-dialog v-model="attributeDialog" max-width="450px" persistent>
       <v-card class="pa-2">
         <v-card-title class="text-h5 font-weight-medium pa-4">
@@ -406,8 +451,9 @@ import {
   deleteProductApi,
   getAuthorsApi,
   getPublishersApi,
-  getCategoriesApi,
+  getCategoriesApi
 } from '@/api/productApi';
+import { getInventoryApi, setInventoryApi } from '@/api/inventoryApi';
 import { searchProductsApi } from '@/api/searchApi';
 
 const headers = [
@@ -416,7 +462,7 @@ const headers = [
   { title: 'Author', key: 'author', sortable: true },
   { title: 'Publisher', key: 'publisher', sortable: true },
   { title: 'Price', key: 'basePrice', sortable: true },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
 ];
 
 const api = {
@@ -424,7 +470,7 @@ const api = {
   search: searchProductsApi,
   create: createProductApi,
   update: updateProductApi,
-  delete: deleteProductApi,
+  delete: deleteProductApi
 };
 
 const defaultItem = ref({
@@ -443,6 +489,7 @@ const defaultItem = ref({
   saleStartDate: '',
   saleEndDate: '',
   categoryIds: [],
+  stock: 0
 });
 
 const formError = ref(null);
@@ -466,17 +513,16 @@ const saleEndMenu = ref(false);
 const saleStartPicker = ref(null);
 const saleEndPicker = ref(null);
 
-
 const slugify = (text) => {
   if (!text) return '';
   return text
     .toString()
     .toLowerCase()
-    .normalize('NFD') 
+    .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\w\s-]/g, '')
     .trim()
-    .replace(/\s+/g, '-'); 
+    .replace(/\s+/g, '-');
 };
 
 const openAttributeDialog = (attr = { key: '', value: '' }, index = -1) => {
@@ -499,13 +545,17 @@ const saveAttribute = () => {
   const normalizedKey = slugify(newAttribute.value.key.toLowerCase());
 
   if (editedAttributeIndex.value > -1) {
-    attributesArray.value[editedAttributeIndex.value].value = newAttribute.value.value;
+    attributesArray.value[editedAttributeIndex.value].value =
+      newAttribute.value.value;
   } else {
-    if (attributesArray.value.some(attr => attr.key === normalizedKey)) {
-        formError.value = `Attribute key '${newAttribute.value.key}' already exists. Please edit the existing one.`;
-        return;
+    if (attributesArray.value.some((attr) => attr.key === normalizedKey)) {
+      formError.value = `Attribute key '${newAttribute.value.key}' already exists. Please edit the existing one.`;
+      return;
     }
-    attributesArray.value.push({ key: normalizedKey, value: newAttribute.value.value });
+    attributesArray.value.push({
+      key: normalizedKey,
+      value: newAttribute.value.value
+    });
   }
   formError.value = null;
   closeAttributeDialog();
@@ -514,7 +564,6 @@ const saveAttribute = () => {
 const deleteAttribute = (index) => {
   attributesArray.value.splice(index, 1);
 };
-
 
 const productSchema = z.object({
   title: z.string().min(1, 'Book title is required'),
@@ -537,28 +586,41 @@ const productSchema = z.object({
     .or(z.literal('')),
   pageCount: z.number().int().min(0, 'Pages must be >= 0').optional().nullable(),
   basePrice: z.number().min(0, 'Price must be >= 0'),
-  
-  salePrice: z.number().min(0, 'Sale Price must be >= 0').optional().nullable().or(z.literal(0)),
+
+  salePrice: z
+    .number()
+    .min(0, 'Sale Price must be >= 0')
+    .optional()
+    .nullable()
+    .or(z.literal(0)),
   saleStartDate: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, 'Date & Time must be in YYYY-MM-DDTHH:MM format or empty')
+    .regex(
+      /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/,
+      'Date & Time must be in YYYY-MM-DDTHH:MM format or empty'
+    )
     .optional()
     .nullable()
     .or(z.literal('')),
   saleEndDate: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, 'Date & Time must be in YYYY-MM-DDTHH:MM format or empty')
+    .regex(
+      /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/,
+      'Date & Time must be in YYYY-MM-DDTHH:MM format or empty'
+    )
     .optional()
     .nullable()
     .or(z.literal('')),
-  
+
   categoryIds: z.array(z.string()).optional(),
+  stock: z.number().int().min(0, 'Stock must be >= 0').optional().nullable()
 });
 
-const { errors, setValues, resetForm, validate, values, setFieldValue } = useForm({
-  validationSchema: toTypedSchema(productSchema),
-  initialValues: defaultItem.value,
-});
+const { errors, setValues, resetForm, validate, values, setFieldValue } =
+  useForm({
+    validationSchema: toTypedSchema(productSchema),
+    initialValues: defaultItem.value
+  });
 
 const { value: title } = useField('title');
 const { value: slug } = useField('slug');
@@ -574,6 +636,7 @@ const { value: salePrice } = useField('salePrice');
 const { value: saleStartDate } = useField('saleStartDate');
 const { value: saleEndDate } = useField('saleEndDate');
 const { value: categoryIds } = useField('categoryIds');
+const { value: stock } = useField('stock');
 
 watch(title, (newTitle) => {
   if (!values.id) {
@@ -591,17 +654,20 @@ const updateSaleEndDate = (newDate) => {
   saleEndMenu.value = false;
 };
 
-
-const handleOpenDialog = (item) => {
+const handleOpenDialog = async (item) => {
   attributesArray.value = [];
-  
+  resetForm({ values: defaultItem.value });
+
   if (item && item.id) {
     const attributesObj = item.attributes || {};
     for (const key in attributesObj) {
-        attributesArray.value.push({ key: key, value: attributesObj[key] });
+      attributesArray.value.push({ key: key, value: attributesObj[key] });
     }
 
-    const salesStart = item.saleStartDate?.substring(0, 16).split('T') || ['', ''];
+    const salesStart = item.saleStartDate?.substring(0, 16).split('T') || [
+      '',
+      ''
+    ];
     saleStartDateOnly.value = salesStart[0];
     saleStartTimeOnly.value = salesStart[1];
 
@@ -610,19 +676,18 @@ const handleOpenDialog = (item) => {
     saleEndTimeOnly.value = salesEnd[1];
 
     if (salesStart[0]) {
-        const parsedDate = parseISO(salesStart[0]);
-        if (isDateValid(parsedDate)) saleStartPicker.value = parsedDate;
+      const parsedDate = parseISO(salesStart[0]);
+      if (isDateValid(parsedDate)) saleStartPicker.value = parsedDate;
     } else {
-        saleStartPicker.value = null;
-    }
-    
-    if (salesEnd[0]) {
-        const parsedDate = parseISO(salesEnd[0]);
-        if (isDateValid(parsedDate)) saleEndPicker.value = parsedDate;
-    } else {
-        saleEndPicker.value = null;
+      saleStartPicker.value = null;
     }
 
+    if (salesEnd[0]) {
+      const parsedDate = parseISO(salesEnd[0]);
+      if (isDateValid(parsedDate)) saleEndPicker.value = parsedDate;
+    } else {
+      saleEndPicker.value = null;
+    }
 
     const itemToSet = {
       ...item,
@@ -634,20 +699,24 @@ const handleOpenDialog = (item) => {
         : '',
       slug: item.slug || slugify(item.title),
       salePrice: item.salePrice || 0,
-      
+
       saleStartDate: item.saleStartDate
         ? item.saleStartDate.substring(0, 16)
         : '',
-      saleEndDate: item.saleEndDate
-        ? item.saleEndDate.substring(0, 16)
-        : '',
+      saleEndDate: item.saleEndDate ? item.saleEndDate.substring(0, 16) : '',
+      stock: 0
     };
     delete itemToSet.attributes;
 
     setValues(itemToSet);
+
+    try {
+      const inventoryData = await getInventoryApi(item.id);
+      setFieldValue('stock', inventoryData.stock);
+    } catch (e) {
+      setFieldValue('stock', 0);
+    }
   } else {
-    resetForm();
-    slug.value = slugify(title.value);
     saleStartDateOnly.value = '';
     saleStartTimeOnly.value = '';
     saleEndDateOnly.value = '';
@@ -663,7 +732,7 @@ const onBeforeOpenDialog = async () => {
     const [authorsData, publishersData, categoriesData] = await Promise.all([
       getAuthorsApi(0, 1000),
       getPublishersApi(0, 1000),
-      getCategoriesApi(),
+      getCategoriesApi()
     ]);
     authorList.value = authorsData.content;
     publisherList.value = publishersData.content;
@@ -678,28 +747,34 @@ const onBeforeOpenDialog = async () => {
 const onSave = async (editedItem, showError) => {
   formError.value = null;
 
-  setFieldValue('saleStartDate', saleStartDateOnly.value && saleStartTimeOnly.value
-    ? `${saleStartDateOnly.value}T${saleStartTimeOnly.value}`
-    : (saleStartDateOnly.value || '')
-    );
-  setFieldValue('saleEndDate', saleEndDateOnly.value && saleEndTimeOnly.value
-    ? `${saleEndDateOnly.value}T${saleEndTimeOnly.value}`
-    : (saleEndDateOnly.value || '')
-    );
-  
+  setFieldValue(
+    'saleStartDate',
+    saleStartDateOnly.value && saleStartTimeOnly.value
+      ? `${saleStartDateOnly.value}T${saleStartTimeOnly.value}`
+      : saleStartDateOnly.value || ''
+  );
+  setFieldValue(
+    'saleEndDate',
+    saleEndDateOnly.value && saleEndTimeOnly.value
+      ? `${saleEndDateOnly.value}T${saleEndTimeOnly.value}`
+      : saleEndDateOnly.value || ''
+  );
+
   const { valid } = await validate();
   if (!valid) {
     return false;
   }
-  
+
   const payload = { ...values };
+  const stockAmount = payload.stock || 0;
+  delete payload.stock;
 
   payload.authorId = payload.authorId || null;
   payload.publisherId = payload.publisherId || null;
   payload.publicationDate = payload.publicationDate || null;
   payload.pageCount = payload.pageCount || 0;
   payload.basePrice = Number(payload.basePrice);
-  
+
   payload.slug = payload.slug || slugify(payload.title);
 
   payload.salePrice = Number(payload.salePrice) || null;
@@ -707,11 +782,11 @@ const onSave = async (editedItem, showError) => {
   const dateToIso = (dateString) => {
     if (!dateString) return null;
     if (dateString.includes('T')) {
-        return `${dateString}:00+07:00`;
+      return `${dateString}:00+07:00`;
     }
     const dateMatch = dateString.match(/^(\d{4}-\d{2}-\d{2})$/);
     if (dateMatch) {
-        return `${dateMatch[0]}T00:00:00+07:00`;
+      return `${dateMatch[0]}T00:00:00+07:00`;
     }
     return null;
   };
@@ -720,7 +795,7 @@ const onSave = async (editedItem, showError) => {
   payload.saleEndDate = dateToIso(payload.saleEndDate);
 
   const attributesObject = {};
-  attributesArray.value.forEach(attr => {
+  attributesArray.value.forEach((attr) => {
     if (attr.key && attr.value) {
       attributesObject[attr.key] = attr.value;
     }
@@ -731,7 +806,7 @@ const onSave = async (editedItem, showError) => {
   } else {
     delete payload.attributes;
   }
-  
+
   if (!payload.salePrice) delete payload.salePrice;
   if (!payload.saleStartDate) delete payload.saleStartDate;
   if (!payload.saleEndDate) delete payload.saleEndDate;
@@ -739,13 +814,18 @@ const onSave = async (editedItem, showError) => {
   if (payload.description === '') payload.description = null;
   if (payload.imageUrl === '') payload.imageUrl = null;
 
-
   try {
+    let savedProduct;
     if (editedItem.id) {
-      await api.update(editedItem.id, payload);
+      savedProduct = await api.update(editedItem.id, payload);
     } else {
-      await api.create(payload);
+      savedProduct = await api.create(payload);
     }
+
+    if (savedProduct && savedProduct.id) {
+      await setInventoryApi(savedProduct.id, stockAmount);
+    }
+
     resetForm();
     return true;
   } catch (err) {
@@ -758,7 +838,7 @@ const formatPrice = (value) => {
   if (!value) return '0 ₫';
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
-    currency: 'VND',
+    currency: 'VND'
   }).format(value);
 };
 </script>
@@ -773,6 +853,6 @@ const formatPrice = (value) => {
   background-color: rgba(var(--v-theme-primary), 0.05) !important;
 }
 .attribute-list-item:last-child {
-    border-bottom: none;
+  border-bottom: none;
 }
 </style>

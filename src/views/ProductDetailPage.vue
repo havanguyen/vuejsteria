@@ -60,17 +60,31 @@
           >
             Ưu đãi kết thúc vào: {{ formattedSaleEndDate }}
           </v-alert>
-          <p class="text-body-1 mb-8" style="text-shadow: none">
+
+          <p class="text-body-1 mb-6" style="text-shadow: none">
             {{ product.description }}
           </p>
+
+          <div v-if="stock !== null" class="text-body-1 mb-8">
+            <v-chip
+              :color="stock > 0 ? 'success' : 'error'"
+              variant="tonal"
+              label
+            >
+              <v-icon start>mdi-package-variant</v-icon>
+              {{ stock > 0 ? `In Stock: ${stock}` : 'Out of Stock' }}
+            </v-chip>
+          </div>
+
           <v-btn
             color="primary"
             size="large"
             prepend-icon="mdi-cart-plus"
             variant="flat"
             @click="handleAddToCart"
+            :disabled="stock === 0"
           >
-            Thêm vào giỏ hàng
+            {{ stock > 0 ? 'Thêm vào giỏ hàng' : 'Hết hàng' }}
           </v-btn>
         </v-col>
       </v-row>
@@ -150,6 +164,7 @@
 import { ref, onMounted, computed, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { getProductByIdApi } from '@/api/productApi';
+import { getInventoryApi } from '@/api/inventoryApi';
 import { useLoadingStore } from '@/stores/useLoadingStore';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAnimationStore } from '@/stores/useAnimationStore';
@@ -161,6 +176,7 @@ const cartStore = useCartStore();
 const animationStore = useAnimationStore();
 
 const product = ref(null);
+const stock = ref(null);
 const loading = ref(true);
 const tab = ref('description');
 
@@ -232,8 +248,17 @@ onMounted(async () => {
   loadingStore.showLoading();
   loading.value = true;
   try {
-    const data = await getProductByIdApi(route.params.id);
-    product.value = data;
+    const productId = route.params.id;
+    const productData = await getProductByIdApi(productId);
+    product.value = productData;
+
+    try {
+      const inventoryData = await getInventoryApi(productId);
+      stock.value = inventoryData.stock;
+    } catch (invError) {
+      console.error('Failed to fetch inventory:', invError);
+      stock.value = 0;
+    }
   } catch (error) {
     console.error('Failed to fetch product details:', error);
   } finally {
