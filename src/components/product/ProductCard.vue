@@ -8,7 +8,7 @@
     >
       <v-img
         :src="product.imageUrl || 'https://via.placeholder.com/300'"
-        aspect-ratio="0.75" 
+        aspect-ratio="0.75"
         cover
       >
         <v-chip
@@ -52,7 +52,10 @@
           <div class="text-h6 font-weight-bold text-error me-2">
             {{ formatPrice(product.salePrice) }}
           </div>
-          <div class="text-caption text-grey" style="text-decoration: line-through;">
+          <div
+            class="text-caption text-grey"
+            style="text-decoration: line-through"
+          >
             {{ formatPrice(product.basePrice) }}
           </div>
         </div>
@@ -67,6 +70,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { useCartStore } from '@/stores/useCartStore';
 
 const props = defineProps({
   product: {
@@ -76,16 +80,16 @@ const props = defineProps({
 });
 
 const router = useRouter();
+const cartStore = useCartStore();
 
-// NÂNG CẤP: Xử lý 2 cấu trúc dữ liệu khác nhau
 const author = computed(() => {
   if (props.product.authorName) {
-    return props.product.authorName; // Cấu trúc từ ProductDocument (Search Service)
+    return props.product.authorName;
   }
   if (props.product.author && props.product.author.name) {
-    return props.product.author.name; // Cấu trúc từ ProductResponse (Product Service)
+    return props.product.author.name;
   }
-  return null; // Trả về null thay vì 'N/A'
+  return null;
 });
 
 const productLink = computed(() => ({
@@ -93,7 +97,6 @@ const productLink = computed(() => ({
   params: { id: props.product.id }
 }));
 
-// NEW/MODIFIED: Logic kiểm tra Sale
 const isSelling = computed(() => {
   const productData = props.product;
   if (
@@ -104,29 +107,25 @@ const isSelling = computed(() => {
     return false;
   }
 
-  // Check if sale end date has passed
   if (productData.saleEndDate) {
     const saleEndTime = new Date(productData.saleEndDate);
     const currentTime = new Date();
-    
-    // Sale has ended if currentTime >= saleEndTime
+
     if (currentTime.getTime() >= saleEndTime.getTime()) {
-      return false; 
+      return false;
     }
   }
 
-  // Check if sale start date has started (optional check, assuming backend handles this)
   if (productData.saleStartDate) {
     const saleStartTime = new Date(productData.saleStartDate);
     const currentTime = new Date();
     if (currentTime.getTime() < saleStartTime.getTime()) {
-      return false; 
+      return false;
     }
   }
 
   return true;
 });
-
 
 const formatPrice = (value) => {
   if (!value) return '0 ₫';
@@ -136,8 +135,8 @@ const formatPrice = (value) => {
   }).format(value);
 };
 
-const addToCart = () => {
-  console.log('Added to cart:', props.product.id);
+const addToCart = async () => {
+  await cartStore.addProduct(props.product.id, 1);
 };
 </script>
 

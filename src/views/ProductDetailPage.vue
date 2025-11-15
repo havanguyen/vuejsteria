@@ -28,7 +28,10 @@
 
           <div class="mb-4">
             <div v-if="isSelling" class="d-flex align-center">
-              <div class="text-subtitle-1 text-grey me-3" style="text-decoration: line-through;">
+              <div
+                class="text-subtitle-1 text-grey me-3"
+                style="text-decoration: line-through"
+              >
                 {{ formatPrice(product.basePrice) }}
               </div>
               <div class="text-h4 font-weight-bold text-error">
@@ -65,6 +68,7 @@
             size="large"
             prepend-icon="mdi-cart-plus"
             variant="flat"
+            @click="handleAddToCart"
           >
             Thêm vào giỏ hàng
           </v-btn>
@@ -105,12 +109,22 @@
               :subtitle="product.isbn"
             ></v-list-item>
           </v-list>
-          
-          <v-divider v-if="attributesArray.length > 0" class="my-4"></v-divider>
-          <h4 v-if="attributesArray.length > 0" class="text-h6 font-weight-medium mb-3">
+
+          <v-divider
+            v-if="attributesArray.length > 0"
+            class="my-4"
+          ></v-divider>
+          <h4
+            v-if="attributesArray.length > 0"
+            class="text-h6 font-weight-medium mb-3"
+          >
             Thông tin thêm
           </h4>
-          <v-list v-if="attributesArray.length > 0" lines="one" class="bg-transparent">
+          <v-list
+            v-if="attributesArray.length > 0"
+            lines="one"
+            class="bg-transparent"
+          >
             <v-list-item
               v-for="attr in attributesArray"
               :key="attr.key"
@@ -118,7 +132,7 @@
               :subtitle="attr.value"
             ></v-list-item>
           </v-list>
-          </v-window-item>
+        </v-window-item>
 
         <v-window-item value="reviews">
           <p>Chưa có đánh giá nào cho sản phẩm này.</p>
@@ -137,10 +151,12 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { getProductByIdApi } from '@/api/productApi';
 import { useLoadingStore } from '@/stores/useLoadingStore';
+import { useCartStore } from '@/stores/useCartStore';
 import { format } from 'date-fns';
 
 const route = useRoute();
 const loadingStore = useLoadingStore();
+const cartStore = useCartStore();
 
 const product = ref(null);
 const loading = ref(true);
@@ -154,9 +170,6 @@ const formatPrice = (value) => {
   }).format(value);
 };
 
-// --- NEW/MODIFIED COMPUTED PROPERTIES ---
-
-// Check if the product is currently on sale
 const isSelling = computed(() => {
   const productData = product.value;
   if (
@@ -168,48 +181,45 @@ const isSelling = computed(() => {
     return false;
   }
 
-  // MODIFIED LOGIC: Check if sale end date has passed
   if (productData.saleEndDate) {
     const saleEndTime = new Date(productData.saleEndDate);
     const currentTime = new Date();
-    
-    // Sale has ended if currentTime >= saleEndTime
+
     if (currentTime.getTime() >= saleEndTime.getTime()) {
-      return false; 
+      return false;
     }
   }
 
   return true;
 });
 
-// Format sale end date for display
 const formattedSaleEndDate = computed(() => {
   const dateString = product.value?.saleEndDate;
   if (!dateString) return null;
-  
+
   try {
-    // format date for local display
     return format(new Date(dateString), 'dd/MM/yyyy HH:mm:ss');
   } catch (e) {
-    console.error("Failed to format sale end date:", e);
-    return dateString.split('T')[0]; // Fallback to just the date part
+    console.error('Failed to format sale end date:', e);
+    return dateString.split('T')[0];
   }
 });
 
-// Transform attributes object to an array for v-for loop
 const attributesArray = computed(() => {
   const attributesObj = product.value?.attributes;
   if (!attributesObj || typeof attributesObj !== 'object') return [];
-  
-  return Object.keys(attributesObj).map(key => ({
-    // Chuyển key từ snake_case hoặc camelCase thành Title Case để hiển thị
-    key: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+
+  return Object.keys(attributesObj).map((key) => ({
+    key: key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
     value: attributesObj[key]
   }));
 });
 
-// --- END NEW/MODIFIED COMPUTED PROPERTIES ---
-
+const handleAddToCart = async () => {
+  if (product.value) {
+    await cartStore.addProduct(product.value.id, 1);
+  }
+};
 
 onMounted(async () => {
   loadingStore.showLoading();

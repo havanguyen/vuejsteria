@@ -37,7 +37,6 @@
         style="max-width: 500px"
         class="mx-4"
         @keydown.enter="goToSearchPage"
-        
         variant="solo"
         bg-color="rgba(255, 255, 255, 0.75)"
         flat
@@ -75,6 +74,21 @@
       </v-menu>
 
       <v-spacer></v-spacer>
+
+      <v-btn
+        v-if="isAuthenticated"
+        :to="{ name: 'Cart' }"
+        icon
+        class="text-primary mr-2"
+      >
+        <v-badge
+          :content="itemCount"
+          color="error"
+          :model-value="itemCount > 0"
+        >
+          <v-icon>mdi-cart-outline</v-icon>
+        </v-badge>
+      </v-btn>
 
       <div v-if="!isAuthenticated">
         <v-btn :to="{ name: 'Login' }" text class="text-primary"> Login </v-btn>
@@ -134,11 +148,15 @@ import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useCartStore } from '@/stores/useCartStore';
 import { searchProductsApi } from '@/api/searchApi';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const { user, isAuthenticated, isAdmin } = storeToRefs(authStore);
+
+const cartStore = useCartStore();
+const { itemCount } = storeToRefs(cartStore);
 
 const searchQuery = ref(null);
 const searchResults = ref([]);

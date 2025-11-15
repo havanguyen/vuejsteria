@@ -10,6 +10,7 @@ import {
 import { getMyInfoApi } from '@/api/userApi';
 import { getRolesFromScope } from '@/utils/authUtils';
 import { useNotificationStore } from './useNotificationStore';
+import { useCartStore } from './useCartStore';
 
 export const useAuthStore = defineStore(
   'auth',
@@ -42,6 +43,8 @@ export const useAuthStore = defineStore(
       const authData = await loginApi(credentials);
       setTokens(authData.token, authData.refreshToken);
       await fetchMyInfo();
+      const cartStore = useCartStore();
+      await cartStore.fetchCart();
     }
 
     async function register(userData) {
@@ -49,6 +52,9 @@ export const useAuthStore = defineStore(
     }
 
     async function logout() {
+      const cartStore = useCartStore();
+      cartStore.clearLocalCart();
+
       if (token.value) {
         try {
           await logoutApi(token.value);
@@ -122,6 +128,8 @@ export const useAuthStore = defineStore(
     async function hydrate() {
       if (token.value) {
         await fetchMyInfo();
+        const cartStore = useCartStore();
+        await cartStore.fetchCart();
       }
     }
 
