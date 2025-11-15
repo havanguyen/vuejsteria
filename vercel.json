@@ -1,7 +1,11 @@
 {
   "rewrites": [
     {
-      "source": "/((?!api|assets|favicon.ico|images|js|css|_).*)",
+      "source": "/api/:path*",
+      "destination": "https://api.bookteria.xyz/api/v1/:path*"
+    },
+    {
+      "source": "/:path((?!.*\\.).*)",
       "destination": "/index.html"
     }
   ]
