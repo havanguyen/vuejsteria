@@ -45,6 +45,19 @@ const routes = [
         name: 'Cart',
         component: () => import('@/views/CartPage.vue'),
         meta: { requiresAuth: true, title: 'My Cart' }
+      },
+      {
+        path: 'checkout',
+        name: 'Checkout',
+        component: () => import('@/views/CheckoutPage.vue'),
+        meta: { requiresAuth: true, title: 'Checkout' }
+      },
+      {
+        path: 'order-pending/:id',
+        name: 'OrderPending',
+        component: () => import('@/views/OrderPendingPage.vue'),
+        meta: { requiresAuth: true, title: 'Pending Payment' },
+        props: true
       }
     ]
   },
