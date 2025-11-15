@@ -37,9 +37,9 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
-  async function addProduct(productId, quantity) {
+  async function addProduct(bookId, quantity) {
     try {
-      await addToCartApi({ productId, quantity });
+      await addToCartApi({ bookId, quantity });
       await fetchCart();
       notificationStore.showSuccess('Product added to cart!');
     } catch (error) {
