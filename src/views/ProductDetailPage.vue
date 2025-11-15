@@ -12,7 +12,7 @@
             :src="product.imageUrl || 'https://via.placeholder.com/400'"
             max-height="500"
             cover
-            class="rounded-lg elevation-2"
+            class="rounded-lg elevation-2 product-detail-image"
           ></v-img>
         </v-col>
         <v-col cols="12" md="7" lg="8">
@@ -147,16 +147,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { getProductByIdApi } from '@/api/productApi';
 import { useLoadingStore } from '@/stores/useLoadingStore';
 import { useCartStore } from '@/stores/useCartStore';
+import { useAnimationStore } from '@/stores/useAnimationStore';
 import { format } from 'date-fns';
 
 const route = useRoute();
 const loadingStore = useLoadingStore();
 const cartStore = useCartStore();
+const animationStore = useAnimationStore();
 
 const product = ref(null);
 const loading = ref(true);
@@ -215,9 +217,14 @@ const attributesArray = computed(() => {
   }));
 });
 
-const handleAddToCart = async () => {
+const handleAddToCart = async (event) => {
   if (product.value) {
-    await cartStore.addProduct(product.value.id, 1);
+    await nextTick();
+    const imgElement = document.querySelector('.product-detail-image');
+    if (imgElement) {
+      animationStore.startAnimation(imgElement, product.value.imageUrl);
+    }
+    cartStore.addProduct(product.value, 1);
   }
 };
 

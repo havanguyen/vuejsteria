@@ -10,6 +10,7 @@
         :src="product.imageUrl || 'https://via.placeholder.com/300'"
         aspect-ratio="0.75"
         cover
+        class="product-card-image"
       >
         <v-chip
           v-if="isSelling"
@@ -71,6 +72,7 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCartStore } from '@/stores/useCartStore';
+import { useAnimationStore } from '@/stores/useAnimationStore';
 
 const props = defineProps({
   product: {
@@ -81,6 +83,7 @@ const props = defineProps({
 
 const router = useRouter();
 const cartStore = useCartStore();
+const animationStore = useAnimationStore();
 
 const author = computed(() => {
   if (props.product.authorName) {
@@ -135,8 +138,15 @@ const formatPrice = (value) => {
   }).format(value);
 };
 
-const addToCart = async () => {
-  await cartStore.addProduct(props.product.id, 1);
+const addToCart = (event) => {
+  const imgElement = event.target
+    .closest('.v-card')
+    .querySelector('.product-card-image');
+  if (imgElement) {
+    animationStore.startAnimation(imgElement, props.product.imageUrl);
+  }
+
+  cartStore.addProduct(props.product, 1);
 };
 </script>
 

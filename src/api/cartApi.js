@@ -10,8 +10,13 @@ export const addToCartApi = async (cartData) => {
   return response.data.result;
 };
 
-export const removeProductFromCartApi = async (productId) => {
-  const response = await axiosInstance.delete(`/my-cart/${productId}`);
+export const updateCartApi = async (cartData) => {
+  const response = await axiosInstance.put('/my-cart', cartData);
+  return response.data.result;
+};
+
+export const removeProductFromCartApi = async (bookId) => {
+  const response = await axiosInstance.delete(`/my-cart/${bookId}`);
   return response.data.result;
 };
 

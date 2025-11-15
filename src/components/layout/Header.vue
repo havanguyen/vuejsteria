@@ -80,6 +80,7 @@
         :to="{ name: 'Cart' }"
         icon
         class="text-primary mr-2"
+        id="cart-icon-btn"
       >
         <v-badge
           :content="itemCount"

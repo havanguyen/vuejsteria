@@ -24,7 +24,7 @@
                   <v-avatar rounded="lg" size="80" class="mr-4">
                     <v-img
                       :src="
-                        item.productResponse.thumbnail ||
+                        item.productResponse.imageUrl ||
                         'https://via.placeholder.com/150'
                       "
                     ></v-img>
@@ -32,14 +32,15 @@
                 </template>
 
                 <v-list-item-title class="font-weight-bold mb-1">{{
-                  item.productResponse.name
+                  item.productResponse.title
                 }}</v-list-item-title>
                 <v-list-item-subtitle class="d-flex align-center">
                   <span class="text-body-2 me-4">Quantity:</span>
                   <v-text-field
                     :model-value="item.quantity"
                     @update:modelValue="
-                      (val) => updateQuantity(item.productResponse.id, val, item.stock)
+                      (val) =>
+                        updateQuantity(item.productResponse.id, val, item.stock)
                     "
                     type="number"
                     density="compact"
@@ -50,7 +51,9 @@
                     :max="item.stock"
                     :loading="loadingStates[item.productResponse.id]"
                   ></v-text-field>
-                  <span class="text-caption text-grey ml-2"
+                  <span
+                    v-if="item.stock !== null && item.stock !== undefined"
+                    class="text-caption text-grey ml-2"
                     >In stock: {{ item.stock }}</span
                   >
                 </v-list-item-subtitle>
@@ -165,21 +168,21 @@ const formatPrice = (value) => {
   }).format(value);
 };
 
-const updateQuantity = (productId, value, stock) => {
+const updateQuantity = (bookId, value, stock) => {
   let newQuantity = parseInt(value, 10);
   if (isNaN(newQuantity) || newQuantity < 1) {
     newQuantity = 1;
   }
-  if (newQuantity > stock) {
+  if (stock !== null && stock !== undefined && newQuantity > stock) {
     newQuantity = stock;
   }
 
-  loadingStates[productId] = true;
+  loadingStates[bookId] = true;
 
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(async () => {
-    await cartStore.addProduct(productId, newQuantity);
-    loadingStates[productId] = false;
+    await cartStore.updateProductQuantity(bookId, newQuantity);
+    loadingStates[bookId] = false;
   }, 750);
 };
 </script>
