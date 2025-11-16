@@ -9,70 +9,72 @@
       Back to Cart
     </v-btn>
 
-    <h1 class="text-h4 font-weight-bold mb-6">Checkout</h1>
-
-    <v-row>
-      <v-col cols="12" md="7" order="1" order-md="1">
-        <v-card class="pa-4 pa-md-6">
-          <v-card-title class="text-h6 font-weight-medium">
+    <v-stepper
+      v-model="step"
+      :items="['Shipping Address', 'Review & Payment']"
+      alt-labels
+      editable
+    >
+      <template v-slot:item.1>
+        <v-card flat>
+          <v-card-title class="text-h6 font-weight-medium text-center">
             Shipping Details
           </v-card-title>
           <v-card-text>
-            <v-form @submit.prevent="onSubmit">
-              <v-alert
-                v-if="serverError"
-                type="error"
-                variant="tonal"
-                density="compact"
-                class="mb-4"
-                closable
-              >
-                {{ serverError }}
-              </v-alert>
+            <v-form @submit.prevent="onStep1Submit">
+              <v-row justify="center">
+                <v-col cols="12" md="8">
+                  <v-alert
+                    v-if="serverError"
+                    type="error"
+                    variant="tonal"
+                    density="compact"
+                    class="mb-4"
+                    closable
+                  >
+                    {{ serverError }}
+                  </v-alert>
 
-              <v-row>
-                <v-col cols="12">
                   <v-text-field
-                    v-model="stress.value.value"
-                    :error-messages="stress.errorMessage.value"
-                    label="Street Address (Số nhà, tên đường)"
+                    v-model="stress"
+                    :error-messages="stressError"
+                    label="Street Address (e.g., 17 Dong Ke)"
                     variant="outlined"
                     density="comfortable"
+                    class="mb-3"
                   ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="commune.value.value"
-                    :error-messages="commune.errorMessage.value"
-                    label="District / Ward (Quận/Huyện, Phường/Xã)"
-                    variant="outlined"
-                    density="comfortable"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="city.value.value"
-                    :error-messages="city.errorMessage.value"
-                    label="City / Province (Tỉnh/Thành phố)"
-                    variant="outlined"
-                    density="comfortable"
-                  ></v-text-field>
-                </v-col>
 
-                <v-col cols="12">
                   <v-text-field
-                    v-model="phone.value.value"
-                    :error-messages="phone.errorMessage.value"
+                    v-model="commune"
+                    :error-messages="communeError"
+                    label="District / Ward (e.g., Lien Chieu)"
+                    variant="outlined"
+                    density="comfortable"
+                    class="mb-3"
+                  ></v-text-field>
+
+                  <v-text-field
+                    v-model="city"
+                    :error-messages="cityError"
+                    label="City / Province (e.g., Da Nang)"
+                    variant="outlined"
+                    density="comfortable"
+                    class="mb-3"
+                  ></v-text-field>
+
+                  <v-text-field
+                    v-model="phone"
+                    :error-messages="phoneError"
                     label="Phone Number"
                     variant="outlined"
                     density="comfortable"
                     type="tel"
+                    class="mb-3"
                   ></v-text-field>
-                </v-col>
-                <v-col cols="12">
+
                   <v-textarea
-                    v-model="note.value.value"
-                    :error-messages="note.errorMessage.value"
+                    v-model="note"
+                    :error-messages="noteError"
                     label="Order Note (Optional)"
                     variant="outlined"
                     density="comfortable"
@@ -80,81 +82,105 @@
                   ></v-textarea>
                 </v-col>
               </v-row>
-
-              <v-btn
-                type="submit"
-                color="primary"
-                variant="flat"
-                size="large"
-                block
-                :loading="isSubmitting"
-                :disabled="isSubmitting"
-              >
-                Place Order & Proceed to Payment
-              </v-btn>
             </v-form>
           </v-card-text>
         </v-card>
-      </v-col>
+      </template>
 
-      <v-col cols="12" md="5" order="2" order-md="2">
-        <v-card
-          class="pa-4"
-          style="position: sticky; top: 80px"
-          variant="outlined"
-        >
-          <v-card-title class="text-h6 font-weight-medium">
-            Order Summary
+      <template v-slot:item.2>
+        <v-card flat>
+          <v-card-title class="text-h6 font-weight-medium text-center">
+            Review Order
           </v-card-title>
           <v-card-text>
-            <v-list class="bg-transparent" lines="two">
-              <v-list-item
-                v-for="item in items"
-                :key="item.productResponse.id"
-              >
-                <template v-slot:prepend>
-                  <v-avatar rounded="lg" size="60" class="mr-4">
-                    <v-img
-                      :src="
-                        item.productResponse.imageUrl ||
-                        'https://via.placeholder.com/150'
-                      "
-                    ></v-img>
-                  </v-avatar>
-                </template>
-
-                <v-list-item-title class="font-weight-medium">{{
-                  item.productResponse.title
-                }}</v-list-item-title>
-                <v-list-item-subtitle
-                  >Qty: {{ item.quantity }}
-                </v-list-item-subtitle>
-
-                <template v-slot:append>
-                  <div class="font-weight-bold text-body-1">
-                    {{
-                      formatPrice(
-                        (item.productResponse.salePrice ||
-                          item.productResponse.basePrice) * item.quantity
-                      )
-                    }}
+            <v-row>
+              <v-col cols="12" md="7">
+                <v-card variant="outlined" class="pa-4 mb-4">
+                  <h4 class="text-subtitle-1 font-weight-medium mb-3">
+                    Shipping To:
+                  </h4>
+                  <p>{{ stress }}</p>
+                  <p>{{ commune }}</p>
+                  <p>{{ city }}</p>
+                  <p class="mt-2"><b>Phone:</b> {{ phone }}</p>
+                  <p><b>Note:</b> {{ note || 'None' }}</p>
+                </v-card>
+              </v-col>
+              <v-col cols="12" md="5">
+                <v-card variant="tonal" class="pa-4">
+                  <h4 class="text-subtitle-1 font-weight-medium mb-3">
+                    Order Summary:
+                  </h4>
+                  <v-list class="bg-transparent" density="compact">
+                    <v-list-item
+                      v-for="item in items"
+                      :key="item.productResponse.id"
+                      class="px-0"
+                    >
+                      <v-list-item-title class="font-weight-medium">
+                        {{ item.productResponse.title }} (x{{ item.quantity }})
+                      </v-list-item-title>
+                      <template v-slot:append>
+                        <div class="font-weight-bold">
+                          {{
+                            formatPrice(
+                              (item.productResponse.salePrice ||
+                                item.productResponse.basePrice) *
+                                item.quantity
+                            )
+                          }}
+                        </div>
+                      </template>
+                    </v-list-item>
+                  </v-list>
+                  <v-divider class="my-3"></v-divider>
+                  <div
+                    class="d-flex justify-space-between align-center text-h6"
+                  >
+                    <span class="font-weight-medium">Total:</span>
+                    <span class="font-weight-bold text-primary">{{
+                      formatPrice(totalPrice)
+                    }}</span>
                   </div>
-                </template>
-              </v-list-item>
-            </v-list>
-            <v-divider class="my-3"></v-divider>
-            <div
-              class="d-flex justify-space-between align-center text-h5 mb-4"
-            >
-              <span class="font-weight-medium">Total:</span>
-              <span class="font-weight-bold text-primary">{{
-                formatPrice(totalPrice)
-              }}</span>
-            </div>
+                </v-card>
+              </v-col>
+            </v-row>
           </v-card-text>
         </v-card>
-      </v-col>
-    </v-row>
+      </template>
+
+      <template v-slot:actions="{ prev, next }">
+        <v-card-actions class="pa-4">
+          <v-btn
+            variant="text"
+            @click="prev"
+            :disabled="isSubmitting || step === 1"
+          >
+            Back
+          </v-btn>
+          <v-spacer></v-spacer>
+          <v-btn
+            v-if="step === 1"
+            color="primary"
+            variant="flat"
+            @click="onStep1Submit"
+          >
+            Continue to Review
+          </v-btn>
+          <v-btn
+            v-if="step === 2"
+            color="primary"
+            variant="flat"
+            size="large"
+            @click="onSubmit"
+            :loading="isSubmitting"
+            :disabled="isSubmitting"
+          >
+            Confirm & Proceed to Payment
+          </v-btn>
+        </v-card-actions>
+      </template>
+    </v-stepper>
   </v-container>
 </template>
 
@@ -178,23 +204,35 @@ const { user } = storeToRefs(authStore);
 const { items, totalPrice, itemCount } = storeToRefs(cartStore);
 
 const serverError = ref(null);
+const step = ref(1);
 
-const { handleSubmit, errors, isSubmitting } = useForm({
+const { handleSubmit, isSubmitting, validate } = useForm({
   validationSchema: toTypedSchema(shippingSchema),
   initialValues: {
     stress: '',
     commune: '',
-    city: 'Đà Nẵng',
+    city: 'Vietnam',
     phone: '',
     note: ''
   }
 });
 
-const { value: stress } = useField('stress');
-const { value: commune } = useField('commune');
-const { value: city } = useField('city');
-const { value: phone } = useField('phone');
-const { value: note } = useField('note');
+const { value: stress, errorMessage: stressError } = useField('stress');
+const { value: commune, errorMessage: communeError } = useField('commune');
+const { value: city, errorMessage: cityError } = useField('city');
+const { value: phone, errorMessage: phoneError } = useField('phone');
+const { value: note, errorMessage: noteError } = useField('note');
+
+const onStep1Submit = async () => {
+  const { valid } = await validate();
+  if (valid) {
+    step.value = 2;
+  } else {
+    notificationStore.showError(
+      'Please fill out all required shipping fields.'
+    );
+  }
+};
 
 const formatPrice = (value) => {
   if (!value) return '0 ₫';
@@ -211,15 +249,11 @@ const onSubmit = handleSubmit(async (values) => {
       stress: values.stress,
       commune: values.commune,
       city: values.city
-      // Lưu ý: 'phone' được gửi ở root theo schema,
-      // API checkout mới của bạn dường như không nhận 'phone' trong 'shippingAddress'
-      // Hãy đảm bảo backend xử lý 'phone' nếu cần, hoặc xóa nó khỏi đây và schema
     },
-    phone: values.phone, // Gửi ở root nếu backend hỗ trợ
+    phone: values.phone,
     note: values.note
   };
 
-  // Lọc ra các trường rỗng khỏi shippingAddress nếu cần
   Object.keys(payload.shippingAddress).forEach((key) => {
     if (
       !payload.shippingAddress[key] ||
@@ -228,6 +262,7 @@ const onSubmit = handleSubmit(async (values) => {
       delete payload.shippingAddress[key];
     }
   });
+  if (payload.note === '') delete payload.note;
 
   try {
     const response = await checkoutApi(payload);
@@ -238,6 +273,7 @@ const onSubmit = handleSubmit(async (values) => {
     serverError.value =
       err?.message || 'Failed to place order. Please try again.';
     notificationStore.showError(serverError.value);
+    step.value = 1;
   }
 });
 
