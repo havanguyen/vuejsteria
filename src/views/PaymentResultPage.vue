@@ -48,6 +48,16 @@
             Quay về Trang chủ
           </v-btn>
           <v-btn
+            v-if="orderId && isSuccess"
+            color="primary"
+            variant="outlined"
+            :to="{ name: 'OrderDetail', params: { id: orderId } }"
+            class="mx-2"
+          >
+            Xem Chi tiết Đơn hàng
+          </v-btn>
+          <v-btn
+            v-else
             color="primary"
             variant="outlined"
             :to="{ name: 'OrderHistory' }"
@@ -71,11 +81,12 @@ const status = ref('');
 const orderId = ref('');
 
 const isSuccess = computed(() => {
+  // '00' là mã thành công của VNPay
   return status.value === 'success' || status.value === '00';
 });
 
 onMounted(() => {
-  status.value = route.query.status || route.query.vnp_ResponseCode || '';
-  orderId.value = route.query.orderId || route.query.vnp_TxnRef || '';
+  status.value = route.query.status || route.query.code || '';
+  orderId.value = route.query.orderId || '';
 });
 </script>

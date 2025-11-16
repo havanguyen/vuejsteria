@@ -33,9 +33,18 @@
               <v-row>
                 <v-col cols="12">
                   <v-text-field
-                    v-model="street.value.value"
-                    :error-messages="street.errorMessage.value"
-                    label="Street Address"
+                    v-model="stress.value.value"
+                    :error-messages="stress.errorMessage.value"
+                    label="Street Address (Số nhà, tên đường)"
+                    variant="outlined"
+                    density="comfortable"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="commune.value.value"
+                    :error-messages="commune.errorMessage.value"
+                    label="District / Ward (Quận/Huyện, Phường/Xã)"
                     variant="outlined"
                     density="comfortable"
                   ></v-text-field>
@@ -44,38 +53,12 @@
                   <v-text-field
                     v-model="city.value.value"
                     :error-messages="city.errorMessage.value"
-                    label="City"
+                    label="City / Province (Tỉnh/Thành phố)"
                     variant="outlined"
                     density="comfortable"
                   ></v-text-field>
                 </v-col>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="state.value.value"
-                    :error-messages="state.errorMessage.value"
-                    label="State / Province"
-                    variant="outlined"
-                    density="comfortable"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="postalCode.value.value"
-                    :error-messages="postalCode.errorMessage.value"
-                    label="Postal Code"
-                    variant="outlined"
-                    density="comfortable"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="country.value.value"
-                    :error-messages="country.errorMessage.value"
-                    label="Country"
-                    variant="outlined"
-                    density="comfortable"
-                  ></v-text-field>
-                </v-col>
+
                 <v-col cols="12">
                   <v-text-field
                     v-model="phone.value.value"
@@ -199,21 +182,17 @@ const serverError = ref(null);
 const { handleSubmit, errors, isSubmitting } = useForm({
   validationSchema: toTypedSchema(shippingSchema),
   initialValues: {
-    street: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: 'Việt Nam',
+    stress: '',
+    commune: '',
+    city: 'Đà Nẵng',
     phone: '',
     note: ''
   }
 });
 
-const { value: street } = useField('street');
+const { value: stress } = useField('stress');
+const { value: commune } = useField('commune');
 const { value: city } = useField('city');
-const { value: state } = useField('state');
-const { value: postalCode } = useField('postalCode');
-const { value: country } = useField('country');
 const { value: phone } = useField('phone');
 const { value: note } = useField('note');
 
@@ -229,15 +208,26 @@ const onSubmit = handleSubmit(async (values) => {
   serverError.value = null;
   const payload = {
     shippingAddress: {
-      street: values.street,
-      city: values.city,
-      state: values.state,
-      postalCode: values.postalCode,
-      country: values.country,
-      phone: values.phone
+      stress: values.stress,
+      commune: values.commune,
+      city: values.city
+      // Lưu ý: 'phone' được gửi ở root theo schema,
+      // API checkout mới của bạn dường như không nhận 'phone' trong 'shippingAddress'
+      // Hãy đảm bảo backend xử lý 'phone' nếu cần, hoặc xóa nó khỏi đây và schema
     },
+    phone: values.phone, // Gửi ở root nếu backend hỗ trợ
     note: values.note
   };
+
+  // Lọc ra các trường rỗng khỏi shippingAddress nếu cần
+  Object.keys(payload.shippingAddress).forEach((key) => {
+    if (
+      !payload.shippingAddress[key] ||
+      payload.shippingAddress[key] === ''
+    ) {
+      delete payload.shippingAddress[key];
+    }
+  });
 
   try {
     const response = await checkoutApi(payload);

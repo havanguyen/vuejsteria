@@ -64,7 +64,22 @@ const routes = [
         name: 'PaymentResult',
         component: () => import('@/views/PaymentResultPage.vue'),
         meta: { title: 'Payment Result' }
+      },
+      // --- TUYẾN ĐƯỜNG MỚI ---
+      {
+        path: 'my-orders',
+        name: 'OrderHistory', // Khớp với link từ PaymentResultPage
+        component: () => import('@/views/OrderHistoryPage.vue'),
+        meta: { requiresAuth: true, title: 'My Orders' }
+      },
+      {
+        path: 'order/:id',
+        name: 'OrderDetail',
+        component: () => import('@/views/OrderDetailPage.vue'),
+        meta: { requiresAuth: true, title: 'Order Details' },
+        props: true
       }
+      // --- KẾT THÚC TUYẾN ĐƯỜNG MỚI ---
     ]
   },
   {
@@ -72,6 +87,7 @@ const routes = [
     component: AdminLayout,
     meta: { requiresAuth: true, roles: ['ADMIN'], title: 'Admin' },
     children: [
+      // ... (các route admin giữ nguyên)
       {
         path: '',
         redirect: '/admin/dashboard'

@@ -9,3 +9,13 @@ export const getPaymentUrlApi = async (orderId) => {
   const response = await axiosInstance.get(`/orders/${orderId}/payment-url`);
   return response.data.result;
 };
+
+export const getOrderByIdApi = async (orderId) => {
+  const response = await axiosInstance.get(`/orders/${orderId}`);
+  return response.data.result;
+};
+
+export const getMyOrdersApi = async () => {
+  const response = await axiosInstance.get('/orders/my-orders');
+  return response.data.result;
+};
