@@ -60,7 +60,7 @@ const routes = [
         props: true
       },
       {
-        path: 'payment-result',
+        path: 'payment/result',
         name: 'PaymentResult',
         component: () => import('@/views/PaymentResultPage.vue'),
         meta: { title: 'Payment Result' }
