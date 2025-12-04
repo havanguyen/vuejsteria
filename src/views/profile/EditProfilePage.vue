@@ -1,217 +1,238 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col cols="12">
+  <v-container class="py-8">
+    <v-row justify="center">
+      <v-col cols="12" md="10" lg="8">
+        <!-- Back Button -->
         <v-btn
           variant="text"
-          prepend-icon="mdi-chevron-left"
+          prepend-icon="mdi-arrow-left"
           @click="router.push({ name: 'Profile' })"
-          class="mb-4 text-white"
-          style="text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2)"
+          class="mb-6 text-white font-weight-bold"
+          style="text-shadow: 0 2px 4px rgba(0,0,0,0.3)"
         >
           Back to Profile
         </v-btn>
-      </v-col>
 
-      <v-col cols="12" md="4">
         <v-slide-x-transition appear>
-          <v-card class="pa-4 pa-md-6 rounded-lg">
-            <v-card-title class="text-h6 font-weight-bold mb-4">
-              Profile Picture
-            </v-card-title>
-            <v-card-text class="text-center">
-              <v-avatar
-                size="180"
-                class="elevation-2 mb-4 avatar-glow-edit"
-                color="grey-lighten-3"
-              >
-                <v-img
-                  :src="
-                    avatarUrl ||
-                    user?.profileResponse?.avatarUrl ||
-                    'https://via.placeholder.com/180/E0E0E0/FFFFFF?text=No+Avatar'
-                  "
-                  cover
-                >
-                  <template v-slot:placeholder>
-                    <v-icon size="80" color="grey-darken-1"
-                      >mdi-account-circle</v-icon
-                    >
-                  </template>
-                  <template v-slot:error>
-                    <v-icon size="80" color="grey-darken-1"
-                      >mdi-account-circle</v-icon
-                    >
-                  </template>
-                </v-img>
-              </v-avatar>
+          <v-card class="glass-card overflow-visible">
+            <!-- Decorative Banner -->
+            <div class="profile-banner"></div>
 
-              <input
-                type="file"
-                ref="fileInputRef"
-                @change="handleFileSelected"
-                accept="image/*"
-                hidden
-              />
-
-              <v-btn
-                @click="triggerFileInput"
-                color="primary"
-                variant="flat"
-                prepend-icon="mdi-camera"
-                :loading="isUploading"
-                :disabled="isUploading || isSubmitting"
-                class="mb-2 w-100 hover-lift"
-              >
-                Upload Image
-              </v-btn>
-
-              <v-text-field
-                v-model="avatarUrl"
-                label="Or paste Avatar URL"
-                :error-messages="errors.avatarUrl"
-                density="comfortable"
-                variant="outlined"
-                placeholder="Upload or paste URL"
-                clearable
-                prepend-inner-icon="mdi-link-variant"
-              ></v-text-field>
-            </v-card-text>
-          </v-card>
-        </v-slide-x-transition>
-      </v-col>
-
-      <v-col cols="12" md="8">
-        <v-slide-x-reverse-transition appear>
-          <v-card class="pa-4 pa-md-6 rounded-lg">
-            <v-card-title class="text-h6 font-weight-bold mb-4">
-              Personal Details & Security
-            </v-card-title>
-            <v-card-text>
+            <v-card-text class="pt-0 relative px-4 px-md-8 pb-8">
               <v-form @submit.prevent="onSubmit">
                 <v-row>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="firstName"
-                      label="First Name"
-                      :error-messages="errors.firstName"
-                      density="comfortable"
-                      variant="outlined"
-                      prepend-inner-icon="mdi-account-box-outline"
-                      clearable
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="lastName"
-                      label="Last Name"
-                      :error-messages="errors.lastName"
-                      density="comfortable"
-                      variant="outlined"
-                      prepend-inner-icon="mdi-account-box-outline"
-                      clearable
-                    ></v-text-field>
-                  </v-col>
-                </v-row>
-
-                <v-text-field
-                  v-model="email"
-                  label="Email Address"
-                  :error-messages="errors.email"
-                  type="email"
-                  density="comfortable"
-                  variant="outlined"
-                  prepend-inner-icon="mdi-email-outline"
-                  clearable
-                ></v-text-field>
-
-                <v-row>
-                  <v-col cols="12" sm="7">
-                    <v-menu
-                      v-model="dobMenu"
-                      :close-on-content-click="false"
-                      location="bottom start"
-                    >
-                      <template v-slot:activator="{ props }">
-                        <v-text-field
-                          v-model="dob"
-                          label="Date of Birth"
-                          :error-messages="errors.dob"
-                          readonly
+                  <!-- Left Column: Avatar -->
+                  <v-col cols="12" md="4" class="text-center">
+                    <div class="avatar-wrapper mt-n16">
+                      <v-hover v-slot="{ isHovering, props }">
+                        <div 
+                          class="avatar-container cursor-pointer" 
                           v-bind="props"
-                          density="comfortable"
-                          variant="outlined"
-                          prepend-inner-icon="mdi-calendar"
-                          clearable
-                          @click:clear="dob = null; dobForPicker = null"
-                        ></v-text-field>
-                      </template>
-                      <v-date-picker
-                        v-model="dobForPicker"
-                        @update:modelValue="updateDobField"
-                        show-adjacent-months
-                        hide-header
-                        color="primary"
+                          @click="triggerFileInput"
+                        >
+                          <v-avatar size="180" class="profile-avatar elevation-6">
+                            <v-img
+                              :src="
+                                avatarUrl ||
+                                user?.profileResponse?.avatarUrl ||
+                                'https://via.placeholder.com/200/E0E0E0/FFFFFF?text=No+Avatar'
+                              "
+                              alt="User Avatar"
+                              cover
+                            >
+                              <template v-slot:placeholder>
+                                <div class="d-flex align-center justify-center fill-height bg-grey-lighten-3">
+                                  <v-icon size="80" color="grey-darken-1">mdi-account</v-icon>
+                                </div>
+                              </template>
+                            </v-img>
+                            
+                            <!-- Upload Overlay -->
+                            <v-overlay
+                              :model-value="isHovering"
+                              contained
+                              class="align-center justify-center"
+                              scrim="rgba(0,0,0,0.4)"
+                            >
+                              <v-icon color="white" size="48">mdi-camera-plus</v-icon>
+                              <div class="text-white font-weight-bold mt-2">Change Photo</div>
+                            </v-overlay>
+                          </v-avatar>
+                          
+                          <div class="edit-badge">
+                            <v-icon color="white" size="16">mdi-pencil</v-icon>
+                          </div>
+                        </div>
+                      </v-hover>
+                      
+                      <input
+                        type="file"
+                        ref="fileInputRef"
+                        @change="handleFileSelected"
+                        accept="image/*"
+                        hidden
                       />
-                    </v-menu>
+                      
+                      <div class="text-caption text-medium-emphasis mt-4">
+                        Allowed *.jpeg, *.jpg, *.png, *.gif
+                        <br>Max size of 3 MB
+                      </div>
+                    </div>
                   </v-col>
-                  <v-col cols="12" sm="5">
+
+                  <!-- Right Column: Form Fields -->
+                  <v-col cols="12" md="8" class="pt-md-12">
+                    <h2 class="text-h5 font-weight-bold mb-6 d-flex align-center">
+                      <v-icon color="primary" class="mr-2">mdi-account-details-outline</v-icon>
+                      Personal Details
+                    </h2>
+
+                    <v-row>
+                      <v-col cols="12" sm="6">
+                        <v-text-field
+                          v-model="firstName"
+                          label="First Name"
+                          :error-messages="errors.firstName"
+                          variant="outlined"
+                          density="comfortable"
+                          color="primary"
+                          bg-color="rgba(255,255,255,0.5)"
+                        ></v-text-field>
+                      </v-col>
+                      <v-col cols="12" sm="6">
+                        <v-text-field
+                          v-model="lastName"
+                          label="Last Name"
+                          :error-messages="errors.lastName"
+                          variant="outlined"
+                          density="comfortable"
+                          color="primary"
+                          bg-color="rgba(255,255,255,0.5)"
+                        ></v-text-field>
+                      </v-col>
+                    </v-row>
+
                     <v-text-field
-                      v-model="city"
-                      label="City"
-                      :error-messages="errors.city"
-                      density="comfortable"
+                      v-model="email"
+                      label="Email Address"
+                      :error-messages="errors.email"
                       variant="outlined"
-                      prepend-inner-icon="mdi-city-outline"
-                      clearable
+                      density="comfortable"
+                      prepend-inner-icon="mdi-email-outline"
+                      color="primary"
+                      bg-color="rgba(255,255,255,0.5)"
+                      class="mb-2"
                     ></v-text-field>
+
+                    <v-row>
+                      <v-col cols="12" sm="6">
+                        <v-menu
+                          v-model="dobMenu"
+                          :close-on-content-click="false"
+                          location="bottom start"
+                        >
+                          <template v-slot:activator="{ props }">
+                            <v-text-field
+                              v-model="dob"
+                              label="Date of Birth"
+                              :error-messages="errors.dob"
+                              readonly
+                              v-bind="props"
+                              variant="outlined"
+                              density="comfortable"
+                              prepend-inner-icon="mdi-calendar"
+                              color="primary"
+                              bg-color="rgba(255,255,255,0.5)"
+                              clearable
+                              @click:clear="dob = null; dobForPicker = null"
+                            ></v-text-field>
+                          </template>
+                          <v-date-picker
+                            v-model="dobForPicker"
+                            @update:modelValue="updateDobField"
+                            show-adjacent-months
+                            hide-header
+                            color="primary"
+                          />
+                        </v-menu>
+                      </v-col>
+                      <v-col cols="12" sm="5">
+                        <v-text-field
+                          v-model="city"
+                          label="City"
+                          :error-messages="errors.city"
+                          variant="outlined"
+                          density="comfortable"
+                          prepend-inner-icon="mdi-city-variant-outline"
+                          color="primary"
+                          bg-color="rgba(255,255,255,0.5)"
+                        ></v-text-field>
+                      </v-col>
+                    </v-row>
+
+                    <v-divider class="my-8 opacity-20"></v-divider>
+
+                    <h2 class="text-h5 font-weight-bold mb-6 d-flex align-center">
+                      <v-icon color="primary" class="mr-2">mdi-shield-check-outline</v-icon>
+                      Security
+                    </h2>
+
+                    <v-text-field
+                      v-model="password"
+                      label="New Password"
+                      :error-messages="errors.password"
+                      :type="showPassword ? 'text' : 'password'"
+                      :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                      @click:append-inner="showPassword = !showPassword"
+                      variant="outlined"
+                      density="comfortable"
+                      prepend-inner-icon="mdi-lock-outline"
+                      placeholder="Leave blank to keep current password"
+                      color="primary"
+                      bg-color="rgba(255,255,255,0.5)"
+                      class="mb-2"
+                    ></v-text-field>
+
+                    <v-text-field
+                      v-model="confirmPassword"
+                      label="Confirm New Password"
+                      :error-messages="errors.confirmPassword"
+                      :type="showPassword ? 'text' : 'password'"
+                      variant="outlined"
+                      density="comfortable"
+                      prepend-inner-icon="mdi-lock-check-outline"
+                      color="primary"
+                      bg-color="rgba(255,255,255,0.5)"
+                    ></v-text-field>
+
+                    <div class="d-flex justify-end mt-8">
+                      <v-btn
+                        variant="text"
+                        class="mr-4"
+                        @click="router.push({ name: 'Profile' })"
+                      >
+                        Cancel
+                      </v-btn>
+                      <v-btn
+                        type="submit"
+                        color="primary"
+                        :loading="isSubmitting"
+                        :disabled="isSubmitting || isUploading"
+                        size="large"
+                        rounded="xl"
+                        elevation="4"
+                        prepend-icon="mdi-content-save-outline"
+                        class="px-8 font-weight-bold"
+                      >
+                        Save Changes
+                      </v-btn>
+                    </div>
                   </v-col>
                 </v-row>
-
-                <v-divider class="my-6"></v-divider>
-                <h6 class="text-h6 font-weight-medium mb-4">Security</h6>
-                <v-text-field
-                  v-model="password"
-                  label="New Password"
-                  :error-messages="errors.password"
-                  :type="showPassword ? 'text' : 'password'"
-                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                  @click:append-inner="showPassword = !showPassword"
-                  density="comfortable"
-                  variant="outlined"
-                  prepend-inner-icon="mdi-lock-outline"
-                  placeholder="Leave blank to keep current password"
-                  clearable
-                ></v-text-field>
-                <v-text-field
-                  v-model="confirmPassword"
-                  label="Confirm New Password"
-                  :error-messages="errors.confirmPassword"
-                  :type="showPassword ? 'text' : 'password'"
-                  density="comfortable"
-                  variant="outlined"
-                  prepend-inner-icon="mdi-lock-check-outline"
-                  clearable
-                ></v-text-field>
-
-                <v-card-actions class="px-0 pt-4 d-flex justify-end">
-                  <v-btn
-                    type="submit"
-                    color="primary"
-                    :loading="isSubmitting"
-                    :disabled="isSubmitting || isUploading"
-                    variant="flat"
-                    size="large"
-                    prepend-icon="mdi-content-save-edit-outline"
-                    class="hover-lift"
-                  >
-                    Save Changes
-                  </v-btn>
-                </v-card-actions>
               </v-form>
             </v-card-text>
           </v-card>
-        </v-slide-x-reverse-transition>
+        </v-slide-x-transition>
       </v-col>
     </v-row>
   </v-container>
@@ -295,11 +316,7 @@ const triggerFileInput = () => {
 
 const handleFileSelected = async (event) => {
   const file = event.target.files[0];
-  if (!file) {
-    console.log('Sự kiện @change ĐÃ CHẠY: Không có tệp nào được chọn.');
-    return;
-  }
-  console.log(`Sự kiện @change ĐÃ CHẠY: Đã chọn tệp: ${file.name}`);
+  if (!file) return;
 
   isUploading.value = true;
   loadingStore.showLoading();
@@ -309,9 +326,9 @@ const handleFileSelected = async (event) => {
   try {
     const response = await uploadImageApi(formData);
     setFieldValue('avatarUrl', response.url);
-    notificationStore.showSuccess('Avatar uploaded successfully! Click Save.');
+    notificationStore.showSuccess('Avatar uploaded successfully! Click Save to apply.');
   } catch (error) {
-    notificationStore.showError(error.message || 'Avatar upload failed', 5000);
+    notificationStore.showError(error.message || 'Avatar upload failed');
     setFieldValue('avatarUrl', null);
   } finally {
     isUploading.value = false;
@@ -340,8 +357,10 @@ const onSubmit = handleSubmit(async (values) => {
     const updatedUser = await updateMyInfoApi(updateData);
     authStore.setUser(updatedUser);
     notificationStore.showSuccess('Profile details updated!');
+    router.push({ name: 'Profile' });
   } catch (error) {
-    notificationStore.showError(error.message || 'Failed to update profile');
+    const errorMessage = error?.message || (typeof error === 'string' ? error : 'Failed to update profile');
+    notificationStore.showError(errorMessage);
   } finally {
     isSubmitting.value = false;
     loadingStore.hideLoading();
@@ -354,17 +373,53 @@ const updateDobField = (newDate) => {
 };
 </script>
 
-<style>
-.avatar-glow-edit {
-  border: 3px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 0 15px rgba(11, 87, 208, 0.3);
+<style scoped>
+.glass-card {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 24px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
 }
-.hover-lift {
-  transition:
-    all 0.2s ease-out !important;
+
+.profile-banner {
+  height: 160px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 24px 24px 0 0;
+  margin: -1px -1px 0;
 }
-.hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.2) !important;
+
+.avatar-container {
+  position: relative;
+  display: inline-block;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.avatar-container:hover {
+  transform: scale(1.02);
+}
+
+.profile-avatar {
+  border: 4px solid white;
+}
+
+.edit-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  background: #2196f3;
+  border: 3px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.opacity-20 {
+  opacity: 0.2;
 }
 </style>

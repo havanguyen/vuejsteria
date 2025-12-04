@@ -8,6 +8,7 @@ import {
   clearCartApi
 } from '@/api/cartApi';
 import { useNotificationStore } from './useNotificationStore';
+import { debounce } from '@/utils/debounce';
 
 export const useCartStore = defineStore('cart', () => {
   const items = ref([]);
@@ -26,13 +27,14 @@ export const useCartStore = defineStore('cart', () => {
     }, 0);
   });
 
-  async function fetchCart() {
+  async function fetchCart(config = {}) {
     isLoading.value = true;
     try {
-      items.value = await getMyCartApi();
+      items.value = await getMyCartApi(config);
     } catch (error) {
       console.error('Failed to fetch cart:', error);
-      notificationStore.showError(error.message || 'Failed to fetch cart');
+      // Silent fail or minimal error for initial fetch to avoid annoyance
+      // notificationStore.showError('Không thể tải giỏ hàng', 'Lỗi', error); 
       items.value = [];
     } finally {
       isLoading.value = false;
@@ -45,10 +47,23 @@ export const useCartStore = defineStore('cart', () => {
     );
 
     if (existingItem) {
-      await updateProductQuantity(
-        product.id,
-        existingItem.quantity + quantity
-      );
+      // Optimistic update for UI responsiveness
+      const oldQuantity = existingItem.quantity;
+      existingItem.quantity += quantity;
+
+      // Debounced API call handled by updateProductQuantity logic if we were calling it directly,
+      // but here we are adding. For adding, we usually want immediate feedback.
+      // However, if we want to reuse the debounce logic, we should call the debounced function.
+      // But addProduct is usually a single click.
+
+      try {
+        await updateCartApi({ bookId: product.id, quantity: existingItem.quantity });
+        notificationStore.showSuccess('Đã cập nhật số lượng!', 'Giỏ hàng');
+      } catch (error) {
+        existingItem.quantity = oldQuantity; // Rollback
+        notificationStore.showError('Không thể thêm sản phẩm', 'Lỗi thêm giỏ hàng', error);
+      }
+
     } else {
       try {
         const newItem = await addToCartApi({
@@ -56,32 +71,47 @@ export const useCartStore = defineStore('cart', () => {
           quantity: quantity
         });
         items.value.push(newItem);
-        notificationStore.showSuccess('Product added to cart!');
+        notificationStore.showSuccess('Đã thêm vào giỏ hàng!', 'Thành công');
       } catch (error) {
-        notificationStore.showError(error.message || 'Failed to add product');
+        notificationStore.showError('Không thể thêm sản phẩm', 'Lỗi', error);
       }
     }
   }
 
-  async function updateProductQuantity(bookId, quantity) {
-    const oldItems = JSON.parse(JSON.stringify(items.value));
+  // Debounced API call for quantity updates
+  const debouncedUpdateApi = debounce(async (bookId, quantity, itemIndex, oldQuantity) => {
+    try {
+      const updatedItem = await updateCartApi({ bookId, quantity });
+      // Update with server response to be sure
+      if (items.value[itemIndex]) {
+        items.value[itemIndex] = updatedItem;
+      }
+    } catch (error) {
+      notificationStore.showError(
+        'Không thể cập nhật số lượng',
+        'Lỗi cập nhật',
+        error
+      );
+      // Rollback on error
+      if (items.value[itemIndex]) {
+        items.value[itemIndex].quantity = oldQuantity;
+      }
+    }
+  }, 500);
+
+  function updateProductQuantity(bookId, quantity) {
     const itemIndex = items.value.findIndex(
       (i) => i.productResponse.id === bookId
     );
     if (itemIndex === -1) return;
 
     const oldQuantity = items.value[itemIndex].quantity;
+
+    // Optimistic UI update
     items.value[itemIndex].quantity = quantity;
 
-    try {
-      const updatedItem = await updateCartApi({ bookId, quantity });
-      items.value[itemIndex] = updatedItem;
-    } catch (error) {
-      notificationStore.showError(
-        error.message || 'Failed to update quantity'
-      );
-      items.value[itemIndex].quantity = oldQuantity;
-    }
+    // Call debounced API
+    debouncedUpdateApi(bookId, quantity, itemIndex, oldQuantity);
   }
 
   async function removeProduct(bookId) {
@@ -94,9 +124,9 @@ export const useCartStore = defineStore('cart', () => {
 
     try {
       await removeProductFromCartApi(bookId);
-      notificationStore.showSuccess('Product removed from cart.');
+      notificationStore.showSuccess('Đã xóa sản phẩm khỏi giỏ hàng.');
     } catch (error) {
-      notificationStore.showError(error.message || 'Failed to remove product');
+      notificationStore.showError('Không thể xóa sản phẩm', 'Lỗi', error);
       items.value.splice(itemIndex, 0, itemToRemove);
     }
   }
@@ -106,9 +136,9 @@ export const useCartStore = defineStore('cart', () => {
     items.value = [];
     try {
       await clearCartApi();
-      notificationStore.showSuccess('Cart cleared.');
+      notificationStore.showSuccess('Đã xóa toàn bộ giỏ hàng.');
     } catch (error) {
-      notificationStore.showError(error.message || 'Failed to clear cart');
+      notificationStore.showError('Không thể xóa giỏ hàng', 'Lỗi', error);
       items.value = oldItems;
     }
   }

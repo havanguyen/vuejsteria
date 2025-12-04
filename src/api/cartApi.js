@@ -1,7 +1,7 @@
 import axiosInstance from '@/config/axiosConfig';
 
-export const getMyCartApi = async () => {
-  const response = await axiosInstance.get('/my-cart');
+export const getMyCartApi = async (config = {}) => {
+  const response = await axiosInstance.get('/my-cart', config);
   return response.data.result;
 };
 

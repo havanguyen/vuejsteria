@@ -162,8 +162,14 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
 
   if (!isHydrated && authStore.token) {
-    await authStore.hydrate();
-    isHydrated = true;
+    try {
+      await authStore.hydrate();
+    } catch (error) {
+      console.warn('Hydration failed or timed out, proceeding anyway:', error);
+      // We don't block navigation here. The store will handle the error state.
+    } finally {
+      isHydrated = true;
+    }
   } else {
     isHydrated = true;
   }

@@ -1,18 +1,18 @@
 <template>
   <div>
     <ManagementPage
-      title="Products"
+      title="Product Management"
       icon="mdi-book-open-page-variant"
       :headers="headers"
       :api="api"
       :defaultItem="defaultItem"
-      dialogWidth="900px"
+      dialogWidth="1000px"
       :onSave="onSave"
       :onBeforeOpenDialog="onBeforeOpenDialog"
       :onOpenDialog="handleOpenDialog"
     >
       <template #item.imageUrl="{ item }">
-        <v-avatar size="40" class="my-2" rounded="0">
+        <v-avatar size="48" class="my-2 rounded-lg elevation-2">
           <v-img
             :src="item.imageUrl || 'https://via.placeholder.com/40x60'"
             cover
@@ -24,40 +24,50 @@
           <v-tooltip activator="parent" location="end">
             <v-img
               :src="item.imageUrl || 'https://via.placeholder.com/40x60'"
-              height="200"
-              width="140"
-              contain
+              height="240"
+              width="160"
+              cover
+              class="rounded-lg elevation-4"
             ></v-img>
           </v-tooltip>
         </v-avatar>
       </template>
 
+      <template #item.title="{ item }">
+        <div class="font-weight-bold text-body-1 text-primary">{{ item.title }}</div>
+        <div class="text-caption text-medium-emphasis text-truncate" style="max-width: 200px;">
+          {{ item.description || 'No description' }}
+        </div>
+      </template>
+
       <template #item.basePrice="{ item }">
-        {{ formatPrice(item.basePrice) }}
+        <div class="font-weight-bold">{{ formatPrice(item.basePrice) }}</div>
         <div
           v-if="item.salePrice && item.salePrice > 0"
-          class="text-caption text-error"
+          class="text-caption text-error font-weight-medium"
         >
-          (Sale: {{ formatPrice(item.salePrice) }})
+          Sale: {{ formatPrice(item.salePrice) }}
         </div>
       </template>
 
       <template #item.author="{ item }">
-        {{ item.author?.name || 'N/A' }}
+        <v-chip size="small" variant="tonal" color="info" class="font-weight-medium">
+          {{ item.author?.name || 'N/A' }}
+        </v-chip>
       </template>
 
       <template #item.publisher="{ item }">
-        {{ item.publisher?.name || 'N/A' }}
+        <div class="text-body-2">{{ item.publisher?.name || 'N/A' }}</div>
       </template>
 
-      <template #form="{ editedItem, isSubmitting }">
+      <template #form="{ isSubmitting }">
         <v-form>
           <v-alert
             v-if="formError"
             type="error"
             variant="tonal"
             density="compact"
-            class="mb-4"
+            class="mb-6"
             closable
           >
             {{ formError }}
@@ -65,360 +75,421 @@
 
           <v-row>
             <v-col cols="12" md="4">
-              <ImageUploader
-                label="Book Cover"
-                v-model="imageUrl"
-                :aspectRatio="3 / 4"
-                placeholderIcon="mdi-book"
-              />
+              <v-card class="glass-card pa-4 fill-height d-flex flex-column align-center justify-center" elevation="0">
+                <ImageUploader
+                  label="Book Cover"
+                  v-model="imageUrl"
+                  :aspectRatio="3 / 4"
+                  placeholderIcon="mdi-book"
+                />
+                <div class="text-caption text-medium-emphasis mt-2 text-center">
+                  Recommended ratio 3:4
+                </div>
+              </v-card>
             </v-col>
+            
             <v-col cols="12" md="8">
-              <v-text-field
-                v-model="title"
-                :error-messages="errors.title"
-                label="Book Title"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-              ></v-text-field>
+              <v-card class="glass-card pa-6 fill-height" elevation="0">
+                <h3 class="text-h6 font-weight-bold mb-4 text-primary">Basic Information</h3>
+                
+                <v-text-field
+                  v-model="title"
+                  :error-messages="errors.title"
+                  label="Book Title"
+                  variant="outlined"
+                  density="comfortable"
+                  :disabled="isSubmitting"
+                  class="mb-2 glass-input"
+                ></v-text-field>
 
-              <v-text-field
-                v-model="isbn"
-                :error-messages="errors.isbn"
-                label="ISBN"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-              ></v-text-field>
-              <v-textarea
-                v-model="description"
-                :error-messages="errors.description"
-                label="Description"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-                rows="3"
-              ></v-textarea>
+                <v-row>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="isbn"
+                      :error-messages="errors.isbn"
+                      label="ISBN"
+                      variant="outlined"
+                      density="comfortable"
+                      :disabled="isSubmitting"
+                      class="glass-input"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="pageCount"
+                      :error-messages="errors.pageCount"
+                      label="Page Count"
+                      type="number"
+                      variant="outlined"
+                      density="comfortable"
+                      :disabled="isSubmitting"
+                      class="glass-input"
+                    ></v-text-field>
+                  </v-col>
+                </v-row>
+                
+                <v-textarea
+                  v-model="description"
+                  :error-messages="errors.description"
+                  label="Description"
+                  variant="outlined"
+                  density="comfortable"
+                  :disabled="isSubmitting"
+                  rows="4"
+                  class="glass-input"
+                ></v-textarea>
+              </v-card>
             </v-col>
           </v-row>
 
-          <v-divider class="my-4"></v-divider>
-
-          <v-row>
-            <v-col cols="12" sm="6" md="4">
-              <v-autocomplete
-                v-model="authorId"
-                :items="authorList"
-                item-title="name"
-                item-value="id"
-                :error-messages="errors.authorId"
-                label="Author"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-                :loading="loadingDependencies"
-              ></v-autocomplete>
-            </v-col>
-            <v-col cols="12" sm="6" md="4">
-              <v-autocomplete
-                v-model="publisherId"
-                :items="publisherList"
-                item-title="name"
-                item-value="id"
-                :error-messages="errors.publisherId"
-                label="Publisher"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-                :loading="loadingDependencies"
-              ></v-autocomplete>
-            </v-col>
-            <v-col cols="12" sm="6" md="4">
-              <v-text-field
-                v-model="publicationDate"
-                :error-messages="errors.publicationDate"
-                label="Publication Date"
-                type="date"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-              ></v-text-field>
-            </v-col>
-          </v-row>
-
-          <v-row>
-            <v-col cols="12" sm="6" md="3">
-              <v-text-field
-                v-model.number="basePrice"
-                :error-messages="errors.basePrice"
-                label="Base Price"
-                type="number"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-                prefix="₫"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="6" md="3">
-              <v-text-field
-                v-model.number="salePrice"
-                :error-messages="errors.salePrice"
-                label="Sale Price (Optional)"
-                type="number"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-                prefix="₫"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="6" md="3">
-              <v-text-field
-                v-model.number="pageCount"
-                :error-messages="errors.pageCount"
-                label="Page Count"
-                type="number"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="6" md="3">
-              <v-text-field
-                v-model.number="stock"
-                :error-messages="errors.stock"
-                label="Stock Quantity"
-                type="number"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-                prepend-inner-icon="mdi-package-variant"
-              ></v-text-field>
-            </v-col>
-          </v-row>
-
-          <v-row>
+          <v-row class="mt-2">
             <v-col cols="12">
-              <h6 class="text-subtitle-1 font-weight-medium mb-2">
-                Sale Start Date & Time
-              </h6>
-            </v-col>
-            <v-col cols="12" sm="6">
-              <v-menu
-                v-model="saleStartMenu"
-                :close-on-content-click="false"
-                location="bottom start"
-              >
-                <template v-slot:activator="{ props }">
-                  <v-text-field
-                    v-model="saleStartDateOnly"
-                    label="Date (Ngày)"
-                    readonly
-                    v-bind="props"
-                    variant="outlined"
-                    density="comfortable"
-                    :disabled="isSubmitting"
-                    :error-messages="errors.saleStartDate"
-                    prepend-inner-icon="mdi-calendar"
-                    clearable
-                    @click:clear="
-                      saleStartDateOnly = '';
-                      saleStartPicker = null;
-                    "
-                  ></v-text-field>
-                </template>
-                <v-date-picker
-                  v-model="saleStartPicker"
-                  @update:modelValue="updateSaleStartDate"
-                  show-adjacent-months
-                  hide-header
-                  color="primary"
-                />
-              </v-menu>
-            </v-col>
-            <v-col cols="12" sm="6">
-              <v-text-field
-                v-model="saleStartTimeOnly"
-                label="Time (Giờ:Phút) - Chọn tự động"
-                type="time"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-                :error-messages="errors.saleStartDate"
-                clearable
-              ></v-text-field>
+              <v-card class="glass-card pa-6" elevation="0">
+                <h3 class="text-h6 font-weight-bold mb-4 text-primary">Details & Pricing</h3>
+                
+                <v-row>
+                  <v-col cols="12" sm="6" md="4">
+                    <v-autocomplete
+                      v-model="authorId"
+                      :items="authorList"
+                      item-title="name"
+                      item-value="id"
+                      :error-messages="errors.authorId"
+                      label="Author"
+                      variant="outlined"
+                      density="comfortable"
+                      :disabled="isSubmitting"
+                      :loading="loadingDependencies"
+                      class="glass-input"
+                    ></v-autocomplete>
+                  </v-col>
+                  <v-col cols="12" sm="6" md="4">
+                    <v-autocomplete
+                      v-model="publisherId"
+                      :items="publisherList"
+                      item-title="name"
+                      item-value="id"
+                      :error-messages="errors.publisherId"
+                      label="Publisher"
+                      variant="outlined"
+                      density="comfortable"
+                      :disabled="isSubmitting"
+                      :loading="loadingDependencies"
+                      class="glass-input"
+                    ></v-autocomplete>
+                  </v-col>
+                  <v-col cols="12" sm="6" md="4">
+                    <v-text-field
+                      v-model="publicationDate"
+                      :error-messages="errors.publicationDate"
+                      label="Publication Date"
+                      type="date"
+                      variant="outlined"
+                      density="comfortable"
+                      :disabled="isSubmitting"
+                      class="glass-input"
+                    ></v-text-field>
+                  </v-col>
+                  
+                  <v-col cols="12" sm="6" md="4">
+                    <v-text-field
+                      v-model.number="basePrice"
+                      :error-messages="errors.basePrice"
+                      label="Base Price"
+                      type="number"
+                      variant="outlined"
+                      density="comfortable"
+                      :disabled="isSubmitting"
+                      prefix="₫"
+                      class="glass-input"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6" md="4">
+                    <v-text-field
+                      v-model.number="salePrice"
+                      :error-messages="errors.salePrice"
+                      label="Sale Price (Optional)"
+                      type="number"
+                      variant="outlined"
+                      density="comfortable"
+                      :disabled="isSubmitting"
+                      prefix="₫"
+                      class="glass-input"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6" md="4">
+                    <v-text-field
+                      v-model.number="stock"
+                      :error-messages="errors.stock"
+                      label="Stock Quantity"
+                      type="number"
+                      variant="outlined"
+                      density="comfortable"
+                      :disabled="isSubmitting"
+                      prepend-inner-icon="mdi-package-variant"
+                      class="glass-input"
+                    ></v-text-field>
+                  </v-col>
+                </v-row>
+                
+                <v-autocomplete
+                  v-model="categoryIds"
+                  :items="categoryList"
+                  item-title="name"
+                  item-value="id"
+                  :error-messages="errors.categoryIds"
+                  label="Categories"
+                  variant="outlined"
+                  density="comfortable"
+                  :disabled="isSubmitting"
+                  multiple
+                  chips
+                  closable-chips
+                  class="mt-2 glass-input"
+                ></v-autocomplete>
+              </v-card>
             </v-col>
           </v-row>
 
-          <v-row>
+          <v-row class="mt-2">
             <v-col cols="12">
-              <h6 class="text-subtitle-1 font-weight-medium mb-2">
-                Sale End Date & Time
-              </h6>
-            </v-col>
-            <v-col cols="12" sm="6">
-              <v-menu
-                v-model="saleEndMenu"
-                :close-on-content-click="false"
-                location="bottom start"
-              >
-                <template v-slot:activator="{ props }">
-                  <v-text-field
-                    v-model="saleEndDateOnly"
-                    label="Date (Ngày)"
-                    readonly
-                    v-bind="props"
-                    variant="outlined"
-                    density="comfortable"
-                    :disabled="isSubmitting"
-                    :error-messages="errors.saleEndDate"
-                    prepend-inner-icon="mdi-calendar"
-                    clearable
-                    @click:clear="
-                      saleEndDateOnly = '';
-                      saleEndPicker = null;
-                    "
-                  ></v-text-field>
-                </template>
-                <v-date-picker
-                  v-model="saleEndPicker"
-                  @update:modelValue="updateSaleEndDate"
-                  show-adjacent-months
-                  hide-header
-                  color="primary"
-                />
-              </v-menu>
-            </v-col>
-            <v-col cols="12" sm="6">
-              <v-text-field
-                v-model="saleEndTimeOnly"
-                label="Time (Giờ:Phút) - Chọn tự động"
-                type="time"
-                variant="outlined"
-                density="comfortable"
-                :disabled="isSubmitting"
-                :error-messages="errors.saleEndDate"
-                clearable
-              ></v-text-field>
+              <v-card class="glass-card pa-6" elevation="0">
+                <h3 class="text-h6 font-weight-bold mb-4 text-primary">Sale Schedule</h3>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <div class="text-subtitle-2 font-weight-bold mb-2">Start Time</div>
+                    <v-row dense>
+                      <v-col cols="7">
+                        <v-menu
+                          v-model="saleStartMenu"
+                          :close-on-content-click="false"
+                          location="bottom start"
+                        >
+                          <template v-slot:activator="{ props }">
+                            <v-text-field
+                              v-model="saleStartDateOnly"
+                              label="Date"
+                              readonly
+                              v-bind="props"
+                              variant="outlined"
+                              density="comfortable"
+                              :disabled="isSubmitting"
+                              :error-messages="errors.saleStartDate"
+                              prepend-inner-icon="mdi-calendar"
+                              clearable
+                              @click:clear="
+                                saleStartDateOnly = '';
+                                saleStartPicker = null;
+                              "
+                              class="glass-input"
+                            ></v-text-field>
+                          </template>
+                          <v-date-picker
+                            v-model="saleStartPicker"
+                            @update:modelValue="updateSaleStartDate"
+                            show-adjacent-months
+                            hide-header
+                            color="primary"
+                          />
+                        </v-menu>
+                      </v-col>
+                      <v-col cols="5">
+                        <v-text-field
+                          v-model="saleStartTimeOnly"
+                          label="Time"
+                          type="time"
+                          variant="outlined"
+                          density="comfortable"
+                          :disabled="isSubmitting"
+                          :error-messages="errors.saleStartDate"
+                          clearable
+                          class="glass-input"
+                        ></v-text-field>
+                      </v-col>
+                    </v-row>
+                  </v-col>
+                  
+                  <v-col cols="12" md="6">
+                    <div class="text-subtitle-2 font-weight-bold mb-2">End Time</div>
+                    <v-row dense>
+                      <v-col cols="7">
+                        <v-menu
+                          v-model="saleEndMenu"
+                          :close-on-content-click="false"
+                          location="bottom start"
+                        >
+                          <template v-slot:activator="{ props }">
+                            <v-text-field
+                              v-model="saleEndDateOnly"
+                              label="Date"
+                              readonly
+                              v-bind="props"
+                              variant="outlined"
+                              density="comfortable"
+                              :disabled="isSubmitting"
+                              :error-messages="errors.saleEndDate"
+                              prepend-inner-icon="mdi-calendar"
+                              clearable
+                              @click:clear="
+                                saleEndDateOnly = '';
+                                saleEndPicker = null;
+                              "
+                              class="glass-input"
+                            ></v-text-field>
+                          </template>
+                          <v-date-picker
+                            v-model="saleEndPicker"
+                            @update:modelValue="updateSaleEndDate"
+                            show-adjacent-months
+                            hide-header
+                            color="primary"
+                          />
+                        </v-menu>
+                      </v-col>
+                      <v-col cols="5">
+                        <v-text-field
+                          v-model="saleEndTimeOnly"
+                          label="Time"
+                          type="time"
+                          variant="outlined"
+                          density="comfortable"
+                          :disabled="isSubmitting"
+                          :error-messages="errors.saleEndDate"
+                          clearable
+                          class="glass-input"
+                        ></v-text-field>
+                      </v-col>
+                    </v-row>
+                  </v-col>
+                </v-row>
+              </v-card>
             </v-col>
           </v-row>
-          <h6 class="text-h6 font-weight-medium mb-4 mt-2 d-flex align-center">
-            Product Attributes (Key-Value)
-            <v-spacer></v-spacer>
-            <v-btn
-              icon="mdi-plus"
-              size="small"
-              color="primary"
-              variant="tonal"
-              @click="openAttributeDialog()"
-              :disabled="isSubmitting"
-            >
-              <v-icon size="20">mdi-plus</v-icon>
-              <v-tooltip activator="parent" location="top"
-                >Add New Attribute</v-tooltip
-              >
-            </v-btn>
-          </h6>
 
-          <v-card
-            variant="tonal"
-            class="pa-0 mb-6"
-            v-if="attributesArray.length > 0"
-          >
-            <v-list class="bg-transparent" lines="one" density="compact">
-              <v-list-item
-                v-for="(attr, index) in attributesArray"
-                :key="attr.key"
-                @click.stop="openAttributeDialog(attr, index)"
-                class="attribute-list-item"
-              >
-                <template v-slot:append>
+          <v-row class="mt-2">
+            <v-col cols="12">
+              <v-card class="glass-card pa-6" elevation="0">
+                <div class="d-flex align-center justify-space-between mb-4">
+                  <h3 class="text-h6 font-weight-bold text-primary">Additional Attributes</h3>
                   <v-btn
-                    icon="mdi-close"
-                    variant="text"
+                    prepend-icon="mdi-plus"
                     size="small"
-                    color="red"
-                    @click.stop="deleteAttribute(index)"
+                    color="primary"
+                    variant="tonal"
+                    @click="openAttributeDialog()"
+                    :disabled="isSubmitting"
+                    class="font-weight-bold"
                   >
-                    <v-icon size="18"></v-icon>
-                    <v-tooltip activator="parent" location="top"
-                      >Delete</v-tooltip
-                    >
+                    Add Attribute
                   </v-btn>
-                </template>
-                <template v-slot:title>
-                  <span class="font-weight-medium text-primary">{{
-                    attr.key
-                  }}</span>
-                </template>
-                <template v-slot:subtitle>
-                  <span class="text-medium-emphasis"
-                    >Value: {{ attr.value }}</span
-                  >
-                </template>
-                <v-tooltip activator="parent" location="top"
-                  >Click to Edit</v-tooltip
+                </div>
+
+                <v-card
+                  variant="outlined"
+                  class="pa-0 border-dashed"
+                  v-if="attributesArray.length > 0"
+                  style="border-color: rgba(0,0,0,0.1);"
                 >
-              </v-list-item>
-            </v-list>
-          </v-card>
-          <v-alert
-            v-else
-            type="info"
-            variant="tonal"
-            density="compact"
-            class="mb-4"
-          >
-            No custom attributes added. Click '+' to add one.
-          </v-alert>
-          <v-autocomplete
-            v-model="categoryIds"
-            :items="categoryList"
-            item-title="name"
-            item-value="id"
-            :error-messages="errors.categoryIds"
-            label="Categories"
-            variant="outlined"
-            density="comfortable"
-            :disabled="isSubmitting"
-            multiple
-            chips
-            closable-chips
-          ></v-autocomplete>
+                  <v-list class="bg-transparent" lines="one" density="comfortable">
+                    <template v-for="(attr, index) in attributesArray" :key="attr.key">
+                      <v-list-item
+                        @click.stop="openAttributeDialog(attr, index)"
+                        class="attribute-list-item"
+                        rounded="lg"
+                      >
+                        <template v-slot:prepend>
+                          <v-avatar color="primary" variant="tonal" size="32" class="mr-2">
+                            <span class="text-caption font-weight-bold">{{ index + 1 }}</span>
+                          </v-avatar>
+                        </template>
+                        
+                        <v-list-item-title class="font-weight-bold text-primary">
+                          {{ attr.key }}
+                        </v-list-item-title>
+                        
+                        <v-list-item-subtitle>
+                          {{ attr.value }}
+                        </v-list-item-subtitle>
+
+                        <template v-slot:append>
+                          <div class="d-flex gap-2">
+                            <v-btn
+                              icon="mdi-pencil"
+                              variant="tonal"
+                              color="primary"
+                              size="small"
+                              class="action-btn"
+                              @click.stop="openAttributeDialog(attr, index)"
+                            >
+                              <v-tooltip activator="parent" location="top">Edit</v-tooltip>
+                            </v-btn>
+                            <v-btn
+                              icon="mdi-delete"
+                              variant="tonal"
+                              color="error"
+                              size="small"
+                              class="action-btn"
+                              @click.stop="deleteAttribute(index)"
+                            >
+                              <v-tooltip activator="parent" location="top">Delete</v-tooltip>
+                            </v-btn>
+                          </div>
+                        </template>
+                      </v-list-item>
+                      <v-divider v-if="index < attributesArray.length - 1" class="mx-4 opacity-20"></v-divider>
+                    </template>
+                  </v-list>
+                </v-card>
+                
+                <v-sheet
+                  v-else
+                  class="d-flex flex-column align-center justify-center py-8 bg-surface-variant-lighten rounded-lg border-dashed"
+                >
+                  <v-icon icon="mdi-tag-outline" size="40" color="medium-emphasis" class="mb-2 opacity-50"></v-icon>
+                  <div class="text-body-2 text-medium-emphasis">No custom attributes added yet.</div>
+                </v-sheet>
+              </v-card>
+            </v-col>
+          </v-row>
         </v-form>
       </template>
     </ManagementPage>
 
-    <v-dialog v-model="attributeDialog" max-width="450px" persistent>
-      <v-card class="pa-2">
-        <v-card-title class="text-h5 font-weight-medium pa-4">
+    <v-dialog v-model="attributeDialog" max-width="450px" persistent transition="dialog-bottom-transition">
+      <v-card class="glass-dialog">
+        <v-card-title class="text-h5 font-weight-bold pa-6 pb-4">
           {{ editedAttributeIndex === -1 ? 'Add New Attribute' : 'Edit Attribute' }}
         </v-card-title>
-        <v-divider></v-divider>
-        <v-card-text class="py-6">
+        <v-divider class="opacity-20"></v-divider>
+        <v-card-text class="pa-6">
           <v-text-field
             v-model="newAttribute.key"
-            label="Attribute Key (e.g., language, book_type)"
+            label="Attribute Key (e.g., language)"
             variant="outlined"
             density="comfortable"
             :disabled="editedAttributeIndex !== -1"
-            class="mb-4"
-            hide-details
+            class="mb-4 glass-input"
+            hide-details="auto"
+            placeholder="Enter key..."
           ></v-text-field>
           <v-text-field
             v-model="newAttribute.value"
-            label="Attribute Value (e.g., Vietnamese, Hardcover)"
+            label="Attribute Value (e.g., Vietnamese)"
             variant="outlined"
             density="comfortable"
-            hide-details
+            hide-details="auto"
+            class="glass-input"
+            placeholder="Enter value..."
           ></v-text-field>
         </v-card-text>
-        <v-divider></v-divider>
-        <v-card-actions class="pa-4">
+        <v-divider class="opacity-20"></v-divider>
+        <v-card-actions class="pa-6 pt-4 bg-surface-variant-lighten">
           <v-spacer></v-spacer>
           <v-btn
-            color="blue-darken-1"
+            color="grey-darken-1"
             variant="text"
             @click="closeAttributeDialog"
+            class="px-6"
           >
             Cancel
           </v-btn>
@@ -427,6 +498,8 @@
             variant="flat"
             @click="saveAttribute"
             :disabled="!newAttribute.key || !newAttribute.value"
+            class="px-6 font-weight-bold"
+            rounded="lg"
           >
             Save
           </v-btn>
@@ -457,7 +530,7 @@ import { getInventoryApi, setInventoryApi } from '@/api/inventoryApi';
 import { searchProductsApi } from '@/api/searchApi';
 
 const headers = [
-  { title: 'Cover', key: 'imageUrl', sortable: false, width: '100px' },
+  { title: 'Cover', key: 'imageUrl', sortable: false, width: '80px' },
   { title: 'Title', key: 'title', sortable: true },
   { title: 'Author', key: 'author', sortable: true },
   { title: 'Publisher', key: 'publisher', sortable: true },
@@ -512,6 +585,14 @@ const saleStartMenu = ref(false);
 const saleEndMenu = ref(false);
 const saleStartPicker = ref(null);
 const saleEndPicker = ref(null);
+
+const formatPrice = (value) => {
+  if (!value) return '0 ₫';
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND'
+  }).format(value);
+};
 
 const slugify = (text) => {
   if (!text) return '';
@@ -800,59 +881,71 @@ const onSave = async (editedItem, showError) => {
       attributesObject[attr.key] = attr.value;
     }
   });
-
-  if (Object.keys(attributesObject).length > 0) {
-    payload.attributes = attributesObject;
-  } else {
-    delete payload.attributes;
-  }
-
-  if (!payload.salePrice) delete payload.salePrice;
-  if (!payload.saleStartDate) delete payload.saleStartDate;
-  if (!payload.saleEndDate) delete payload.saleEndDate;
-  if (payload.isbn === '') payload.isbn = null;
-  if (payload.description === '') payload.description = null;
-  if (payload.imageUrl === '') payload.imageUrl = null;
+  payload.attributes = attributesObject;
 
   try {
     let savedProduct;
     if (editedItem.id) {
-      savedProduct = await api.update(editedItem.id, payload);
+      savedProduct = await updateProductApi(editedItem.id, payload);
     } else {
-      savedProduct = await api.create(payload);
+      savedProduct = await createProductApi(payload);
     }
 
     if (savedProduct && savedProduct.id) {
       await setInventoryApi(savedProduct.id, stockAmount);
     }
 
-    resetForm();
     return true;
-  } catch (err) {
-    formError.value = err.message || 'An unknown error occurred while saving.';
+  } catch (error) {
+    console.error('Save failed:', error);
+    showError(error.message || 'Failed to save product');
     return false;
   }
-};
-
-const formatPrice = (value) => {
-  if (!value) return '0 ₫';
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND'
-  }).format(value);
 };
 </script>
 
 <style scoped>
+.glass-card {
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 16px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+}
+
+.glass-input :deep(.v-field) {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+}
+
+.glass-dialog {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px);
+  border-radius: 24px !important;
+}
+
 .attribute-list-item {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  transition: background-color 0.15s ease-in-out;
+  transition: background-color 0.2s ease;
 }
+
 .attribute-list-item:hover {
-  background-color: rgba(var(--v-theme-primary), 0.05) !important;
+  background-color: rgba(var(--v-theme-primary), 0.05);
 }
-.attribute-list-item:last-child {
-  border-bottom: none;
+
+.border-dashed {
+  border-style: dashed !important;
+}
+
+.bg-surface-variant-lighten {
+  background-color: rgba(var(--v-theme-surface-variant), 0.05);
+}
+
+.opacity-20 {
+  opacity: 0.2;
+}
+
+.opacity-50 {
+  opacity: 0.5;
 }
 </style>

@@ -2,9 +2,11 @@
   <v-app style="background: transparent">
     <div class="app-background"></div>
 
-    <transition name="page-fade" mode="out-in">
-      <router-view />
-    </transition>
+    <router-view v-slot="{ Component }">
+      <transition name="page-fade" mode="out-in">
+        <component :is="Component" />
+      </transition>
+    </router-view>
 
     <GlobalSnackbar />
     <GlobalLoadingIndicator />

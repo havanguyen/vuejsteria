@@ -12,6 +12,7 @@ import {
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useLoadingStore } from '@/stores/useLoadingStore';
 import ImageUploader from './shared/ImageUploader.vue';
+import ManagementPage from './shared/ManagementPage.vue';
 
 const notificationStore = useNotificationStore();
 const loadingStore = useLoadingStore();
@@ -51,11 +52,24 @@ const headers = [
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
 ];
 
+const api = {
+  list: getAllUsersApi,
+  // search: searchUsersApi, // Assuming search API exists or will be added
+  delete: deleteUserByAdminApi, // This might need adjustment if delete logic is complex
+};
+
+const defaultItem = {
+  profileResponse: {},
+  roles: [],
+  active: true
+};
+
 const getFullAvatarUrl = (url) => {
   if (!url) return 'https://via.placeholder.com/40';
   return url.startsWith('http') ? url : `${import.meta.env.VITE_API_BASE_URL}/${url}`;
 };
 
+// Reuse existing logic but adapt for ManagementPage
 const loadUsers = async ({ page, itemsPerPage, sortBy }) => {
   loading.value = true;
   error.value = null;
@@ -73,18 +87,19 @@ const loadUsers = async ({ page, itemsPerPage, sortBy }) => {
     pagination.value.totalPages = data.totalPages;
     pagination.value.page = data.pageable?.pageNumber + 1 || page;
     pagination.value.size = data.pageable?.pageSize || itemsPerPage;
+    
+    return data; // Return data for ManagementPage
   } catch (err) {
     error.value = 'Could not load users.';
+    throw err;
   } finally {
     loading.value = false;
   }
 };
 
-const editItem = (item) => {
-  editedIndex.value = users.value.findIndex((u) => u.id === item.id);
-  editedItem.value = JSON.parse(JSON.stringify(item));
+const handleOpenDialog = (item) => {
+  editedItem.value = item ? JSON.parse(JSON.stringify(item)) : { ...defaultItem };
   setupFormValues(editedItem.value);
-  dialog.value = true;
 };
 
 const confirmToggleActive = (item) => {
@@ -141,14 +156,6 @@ const toggleActiveStatus = async () => {
     closeDelete();
     loadingStore.hideLoading();
   }
-};
-
-const close = () => {
-  dialog.value = false;
-  resetForm();
-  editedItem.value = { profileResponse: {}, roles: [] };
-  editedIndex.value = -1;
-  dobForPicker.value = null;
 };
 
 const closeDelete = () => {
@@ -253,11 +260,25 @@ const setupFormValues = (data) => {
   }
 };
 
-const onSubmit = handleSubmit(async (values) => {
+const onSave = async (item, showError) => {
   serverError.value = null;
-  isSubmitting.value = true;
-  loadingStore.showLoading();
+  
+  const { valid } = await handleSubmit(() => {})(); // Validate form
+  if (!valid) return false;
+
   try {
+    const values = {
+        firstName: firstName.value,
+        lastName: lastName.value,
+        email: email.value,
+        dob: dob.value,
+        city: city.value,
+        password: password.value,
+        roles: roles.value,
+        active: active.value,
+        avatarUrl: avatarUrl.value
+    };
+
     const updateData = { ...values };
     
     if (updateData.active !== undefined) {
@@ -283,18 +304,19 @@ const onSubmit = handleSubmit(async (values) => {
       updateData
     );
 
-    Object.assign(users.value[editedIndex.value], updatedUser);
-    notificationStore.showSuccess('User updated successfully!');
-    close();
+    // Update local list
+    const index = users.value.findIndex(u => u.id === editedItem.value.id);
+    if (index !== -1) {
+        Object.assign(users.value[index], updatedUser);
+    }
+    
+    return true;
   } catch (err) {
     console.error('User update failed:', err);
-    serverError.value =
-      err?.title || err?.message || 'User update failed. Please try again.';
-  } finally {
-    isSubmitting.value = false;
-    loadingStore.hideLoading();
+    showError(err?.title || err?.message || (typeof err === 'string' ? err : 'User update failed. Please try again.'));
+    return false;
   }
-});
+};
 
 const updateDobField = (newDate) => {
   dob.value = newDate ? format(newDate, 'yyyy-MM-dd') : null;
@@ -304,388 +326,353 @@ const updateDobField = (newDate) => {
 
 <template>
   <div> 
-    <v-container>
-      <v-card class="pa-4 pa-md-6" elevation="2">
-        <v-card-title class="text-h4 font-weight-medium mb-4 d-flex align-center">
-          <v-icon start color="primary" size="36">mdi-account-group</v-icon>
-          User Management
-        </v-card-title>
-        <v-card-text>
-          <v-alert
-            v-if="error"
-            type="error"
+    <ManagementPage
+      title="User Management"
+      icon="mdi-account-group"
+      :headers="headers"
+      :api="api"
+      :defaultItem="defaultItem"
+      dialogWidth="900px"
+      :onSave="onSave"
+      :onOpenDialog="handleOpenDialog"
+    >
+      <template #item.profileResponse.avatarUrl="{ item }">
+        <v-avatar size="40" class="my-2" rounded="lg">
+          <v-img
+            :src="getFullAvatarUrl(item.profileResponse?.avatarUrl)"
+            alt="Avatar"
+            cover
+          >
+            <template v-slot:placeholder>
+              <v-icon>mdi-account</v-icon>
+            </template>
+          </v-img>
+          <v-tooltip activator="parent" location="end">
+            <v-img
+              :src="getFullAvatarUrl(item.profileResponse?.avatarUrl)"
+              height="150"
+              width="150"
+              contain
+              alt="Avatar preview"
+            ></v-img>
+          </v-tooltip>
+        </v-avatar>
+      </template>
+
+      <template #item.profileResponse.firstName="{ item }">
+        <div class="d-flex align-center py-2">
+          <div>
+            <div class="font-weight-medium text-primary">
+              {{ item.profileResponse?.firstName || '' }}
+              {{ item.profileResponse?.lastName || '' }}
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              @{{ item.username }}
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #item.profileResponse.email="{ item }">
+        <span class="text-body-2">{{ item.profileResponse?.email || '-' }}</span>
+      </template>
+
+      <template #item.active="{ item }">
+        <v-chip
+          :color="item.active ? 'success' : 'error'"
+          size="small"
+          variant="tonal"
+          class="font-weight-bold"
+          label
+        >
+          {{ item.active ? 'Active' : 'Inactive' }}
+        </v-chip>
+      </template>
+
+      <template #item.roles="{ item }">
+        <template v-if="item.roles && item.roles.length > 0">
+          <v-chip
+            v-for="role in item.roles"
+            :key="role.name"
+            :color="role.name === 'ADMIN' ? 'error' : 'primary'"
+            size="small"
+            class="mr-1"
+            variant="flat"
+          >
+            {{ role.name }}
+          </v-chip>
+        </template>
+        <span v-else class="text-medium-emphasis">-</span>
+      </template>
+
+      <template #item.actions="{ item }">
+        <div class="d-flex justify-end gap-2">
+          <v-btn
+            icon="mdi-pencil"
             variant="tonal"
-            density="compact"
-            class="mb-4"
+            color="primary"
+            size="small"
+            class="action-btn"
+            @click="handleOpenDialog(item)"
           >
-            {{ error }}
-          </v-alert>
-  
-          <v-text-field
-            v-model="search"
-            label="Search..."
-            prepend-inner-icon="mdi-magnify"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-            class="mb-4"
-            style="max-width: 400px"
-          ></v-text-field>
-  
-          <v-data-table-server
-            v-model:items-per-page="pagination.size"
-            :headers="headers"
-            :items="users"
-            :items-length="pagination.totalElements"
-            :loading="loading"
-            item-value="id"
-            class="elevation-0 border rounded-lg data-table-hover"
-            @update:options="loadUsers"
-            hover
+            <v-tooltip activator="parent" location="top">Edit</v-tooltip>
+          </v-btn>
+          <v-btn
+            icon="mdi-power"
+            variant="tonal"
+            :color="item.active ? 'error' : 'success'"
+            size="small"
+            class="action-btn"
+            @click="confirmToggleActive(item)"
           >
-            <template v-slot:[`item.profileResponse.avatarUrl`]="{ item }">
-              <v-avatar size="40" class="my-2" rounded="lg">
-                <v-img
-                  :src="getFullAvatarUrl(item.profileResponse?.avatarUrl)"
-                  alt="Avatar"
-                  cover
-                >
-                  <template v-slot:placeholder>
-                    <v-icon>mdi-account</v-icon>
-                  </template>
-                </v-img>
-                <v-tooltip activator="parent" location="end">
-                  <v-img
-                    :src="getFullAvatarUrl(item.profileResponse?.avatarUrl)"
-                    height="150"
-                    width="150"
-                    contain
-                    alt="Avatar preview"
-                  ></v-img>
-                </v-tooltip>
-              </v-avatar>
-            </template>
-  
-            <template v-slot:item.profileResponse\.firstName="{ item }">
-              <div class="d-flex align-center py-2">
-                <div>
-                  <div class="font-weight-medium">
-                    {{ item.profileResponse?.firstName || '' }}
-                    {{ item.profileResponse?.lastName || '' }}
-                  </div>
-                  <div class="text-caption text-grey">
-                    {{ item.username }}
-                  </div>
-                </div>
-              </div>
-            </template>
-            <template v-slot:item.profileResponse\.email="{ item }">
-              {{ item.profileResponse?.email || '-' }}
-            </template>
-            <template v-slot:item.active="{ item }">
-              <v-chip
-                :color="item.active ? 'success' : 'error'"
-                size="small"
-                label
-              >
-                {{ item.active ? 'Active' : 'Inactive' }}
-              </v-chip>
-            </template>
-            <template v-slot:item.roles="{ item }">
-              <template v-if="item.roles && item.roles.length > 0">
-                <v-chip
-                  v-for="role in item.roles"
-                  :key="role.name"
-                  :color="role.name === 'ADMIN' ? 'error' : 'primary'"
-                  size="small"
-                  class="mr-1"
-                  label
-                >
-                  {{ role.name }}
-                </v-chip>
-              </template>
-              <span v-else class="text-grey">-</span>
-            </template>
-  
-            <template v-slot:item.actions="{ item }">
-              <div class="d-flex justify-end">
-                <v-btn
-                  variant="tonal"
-                  color="primary"
-                  size="small"
-                  class="me-2"
-                  @click="editItem(item)"
-                  prepend-icon="mdi-pencil"
-                >
-                  Edit
-                  <v-tooltip activator="parent" location="top">Edit</v-tooltip>
-                </v-btn>
-                <v-btn
-                  variant="tonal"
-                  :color="item.active ? 'red-darken-1' : 'success'"
-                  size="small"
-                  @click="confirmToggleActive(item)"
-                  :prepend-icon="item.active ? 'mdi-power-off' : 'mdi-power-on'"
-                >
-                  {{ item.active ? 'Deactivate' : 'Reactivate' }}
-                  <v-tooltip activator="parent" location="top">{{ item.active ? 'Deactivate' : 'Reactivate' }}</v-tooltip>
-                </v-btn>
-              </div>
-            </template>
-  
-            <template v-slot:loading>
-              <div class="d-flex justify-center align-center pa-5">
-                <v-progress-circular
-                  indeterminate
-                  color="primary"
-                ></v-progress-circular>
-              </div>
-            </template>
-            <template v-slot:no-data>
-              <div class="text-center pa-6 text-grey">
-                <v-icon size="large" class="mb-2"
-                  >mdi-account-search-outline</v-icon
-                >
-                <div>No users found.</div>
-              </div>
-            </template>
-          </v-data-table-server>
-        </v-card-text>
-      </v-card>
-    </v-container>
-  
-    <v-dialog v-model="dialog" max-width="900px" persistent>
-      <v-form @submit.prevent="onSubmit">
-        <v-card class="pa-2">
-          <v-card-title class="text-h5 font-weight-medium pa-4">
-            {{ dialogTitle }}
-          </v-card-title>
-          <v-divider></v-divider>
-  
-          <v-card-text style="max-height: 80vh; overflow-y: auto" class="py-6">
-            <v-alert
-              v-if="serverError"
-              type="error"
-              variant="tonal"
-              density="compact"
-              class="mb-4"
-              closable
-            >
-              {{ serverError }}
-            </v-alert>
-  
+            <v-tooltip activator="parent" location="top">{{ item.active ? 'Deactivate' : 'Reactivate' }}</v-tooltip>
+          </v-btn>
+        </div>
+      </template>
+
+      <template #form="{ isSubmitting }">
+        <v-alert
+          v-if="serverError"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="mb-4"
+          closable
+        >
+          {{ serverError }}
+        </v-alert>
+
+        <v-row>
+          <v-col cols="12" md="4">
+            <ImageUploader
+              label="Avatar"
+              v-model="avatarUrl"
+              placeholderIcon="mdi-account-circle"
+            />
+          </v-col>
+
+          <v-col cols="12" md="8">
+            <v-text-field
+              :model-value="editedItem?.id"
+              label="User ID"
+              readonly
+              disabled
+              variant="filled"
+              density="comfortable"
+              class="mb-4 glass-input"
+            />
+            <v-text-field
+              :model-value="editedItem?.username"
+              label="Username"
+              readonly
+              disabled
+              variant="filled"
+              density="comfortable"
+              prepend-inner-icon="mdi-account"
+              class="mb-4 glass-input"
+            />
+
             <v-row>
-              <v-col cols="12" md="4">
-                <ImageUploader
-                  label="Avatar"
-                  v-model="avatarUrl"
-                  placeholderIcon="mdi-account-circle"
-                />
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="firstName"
+                  label="First Name"
+                  :error-messages="errors.firstName"
+                  density="comfortable"
+                  variant="outlined"
+                  prepend-inner-icon="mdi-account-box-outline"
+                  clearable
+                  class="glass-input"
+                ></v-text-field>
               </v-col>
-  
-              <v-col cols="12" md="8">
+              <v-col cols="12" sm="6">
                 <v-text-field
-                  :model-value="editedItem?.id"
-                  label="User ID"
-                  readonly
-                  disabled
-                  variant="filled"
-                  density="comfortable"
-                  class="mb-4"
-                />
-                <v-text-field
-                  :model-value="editedItem?.username"
-                  label="Username"
-                  readonly
-                  disabled
-                  variant="filled"
-                  density="comfortable"
-                  prepend-inner-icon="mdi-account"
-                  class="mb-4"
-                />
-  
-                <v-row>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="firstName"
-                      label="First Name"
-                      :error-messages="errors.firstName"
-                      density="comfortable"
-                      variant="outlined"
-                      prepend-inner-icon="mdi-account-box-outline"
-                      clearable
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="lastName"
-                      label="Last Name"
-                      :error-messages="errors.lastName"
-                      density="comfortable"
-                      variant="outlined"
-                      prepend-inner-icon="mdi-account-box-outline"
-                      clearable
-                    ></v-text-field>
-                  </v-col>
-                </v-row>
-  
-                <v-text-field
-                  v-model="email"
-                  label="Email Address"
-                  :error-messages="errors.email"
-                  type="email"
+                  v-model="lastName"
+                  label="Last Name"
+                  :error-messages="errors.lastName"
                   density="comfortable"
                   variant="outlined"
-                  prepend-inner-icon="mdi-email-outline"
+                  prepend-inner-icon="mdi-account-box-outline"
                   clearable
+                  class="glass-input"
                 ></v-text-field>
-  
-                <v-row>
-                  <v-col cols="12" sm="7">
-                    <v-menu
-                      v-model="dobMenu"
-                      :close-on-content-click="false"
-                      location="bottom start"
-                    >
-                      <template v-slot:activator="{ props }">
-                        <v-text-field
-                          v-model="dob"
-                          label="Date of Birth"
-                          :error-messages="errors.dob"
-                          readonly
-                          v-bind="props"
-                          density="comfortable"
-                          variant="outlined"
-                          prepend-inner-icon="mdi-calendar"
-                          clearable
-                          @click:clear="dob = null; dobForPicker = null"
-                        ></v-text-field>
-                      </template>
-                      <v-date-picker
-                        v-model="dobForPicker"
-                        @update:modelValue="updateDobField"
-                        show-adjacent-months
-                        hide-header
-                        color="primary"
-                      />
-                    </v-menu>
-                  </v-col>
-                  <v-col cols="12" sm="5">
-                    <v-text-field
-                      v-model="city"
-                      label="City"
-                      :error-messages="errors.city"
-                      density="comfortable"
-                      variant="outlined"
-                      prepend-inner-icon="mdi-city-outline"
-                      clearable
-                    ></v-text-field>
-                  </v-col>
-                </v-row>
-  
-                <v-divider class="my-6"></v-divider>
-                <h6 class="text-h6 font-weight-medium mb-4">
-                  Access Control
-                </h6>
-                <v-text-field
-                  v-model="password"
-                  label="New Password"
-                  :error-messages="errors.password"
-                  :type="showPassword ? 'text' : 'password'"
-                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                  @click:append-inner="showPassword = !showPassword"
-                  density="comfortable"
-                  variant="outlined"
-                  prepend-inner-icon="mdi-lock-outline"
-                  placeholder="Leave blank to keep current password"
-                  clearable
-                ></v-text-field>
-  
-                <v-select
-                  v-model="roles"
-                  :items="allRoles"
-                  label="Roles"
-                  multiple
-                  chips
-                  closable-chips
-                  prepend-inner-icon="mdi-shield-account-outline"
-                  :error-messages="errors.roles"
-                  :disabled="isSubmitting"
-                  class="mb-2"
-                  variant="outlined"
-                  density="comfortable"
-                />
-  
-                <v-switch
-                  v-model="active"
-                  :label="active ? 'Active' : 'Inactive'"
-                  color="success"
-                  inset
-                  :error-messages="errors.active"
-                  :disabled="isSubmitting"
-                  class="mt-2"
-                />
               </v-col>
             </v-row>
-          </v-card-text>
-  
-          <v-divider></v-divider>
-          <v-card-actions class="pa-4">
-            <v-spacer></v-spacer>
-            <v-btn
-              color="blue-darken-1"
-              variant="text"
-              @click="close"
+
+            <v-text-field
+              v-model="email"
+              label="Email Address"
+              :error-messages="errors.email"
+              type="email"
+              density="comfortable"
+              variant="outlined"
+              prepend-inner-icon="mdi-email-outline"
+              clearable
+              class="glass-input"
+            ></v-text-field>
+
+            <v-row>
+              <v-col cols="12" sm="7">
+                <v-menu
+                  v-model="dobMenu"
+                  :close-on-content-click="false"
+                  location="bottom start"
+                >
+                  <template v-slot:activator="{ props }">
+                    <v-text-field
+                      v-model="dob"
+                      label="Date of Birth"
+                      :error-messages="errors.dob"
+                      readonly
+                      v-bind="props"
+                      density="comfortable"
+                      variant="outlined"
+                      prepend-inner-icon="mdi-calendar"
+                      clearable
+                      @click:clear="dob = null; dobForPicker = null"
+                      class="glass-input"
+                    ></v-text-field>
+                  </template>
+                  <v-date-picker
+                    v-model="dobForPicker"
+                    @update:modelValue="updateDobField"
+                    show-adjacent-months
+                    hide-header
+                    color="primary"
+                  />
+                </v-menu>
+              </v-col>
+              <v-col cols="12" sm="5">
+                <v-text-field
+                  v-model="city"
+                  label="City"
+                  :error-messages="errors.city"
+                  density="comfortable"
+                  variant="outlined"
+                  prepend-inner-icon="mdi-city-outline"
+                  clearable
+                  class="glass-input"
+                ></v-text-field>
+              </v-col>
+            </v-row>
+
+            <v-divider class="my-6 opacity-20"></v-divider>
+            <h6 class="text-h6 font-weight-medium mb-4 text-primary">
+              Access Control
+            </h6>
+            <v-text-field
+              v-model="password"
+              label="New Password"
+              :error-messages="errors.password"
+              :type="showPassword ? 'text' : 'password'"
+              :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+              @click:append-inner="showPassword = !showPassword"
+              density="comfortable"
+              variant="outlined"
+              prepend-inner-icon="mdi-lock-outline"
+              placeholder="Leave blank to keep current password"
+              clearable
+              class="glass-input"
+            ></v-text-field>
+
+            <v-select
+              v-model="roles"
+              :items="allRoles"
+              label="Roles"
+              multiple
+              chips
+              closable-chips
+              prepend-inner-icon="mdi-shield-account-outline"
+              :error-messages="errors.roles"
               :disabled="isSubmitting"
-            >
-              Cancel
-            </v-btn>
-            <v-btn
-              type="submit"
-              color="primary"
-              :loading="isSubmitting"
+              class="mb-2 glass-input"
+              variant="outlined"
+              density="comfortable"
+            />
+
+            <v-switch
+              v-model="active"
+              :label="active ? 'Active' : 'Inactive'"
+              color="success"
+              inset
+              :error-messages="errors.active"
               :disabled="isSubmitting"
-              variant="flat"
-            >
-              Save Changes
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-form>
-    </v-dialog>
+              class="mt-2"
+            />
+          </v-col>
+        </v-row>
+      </template>
+    </ManagementPage>
   
-    <v-dialog v-model="deleteDialog" max-width="450px">
-      <v-card class="pa-2">
-        <v-card-title class="text-h5"
-          >Confirm Status Change</v-card-title
-        >
-        <v-card-text>
+    <v-dialog v-model="deleteDialog" max-width="450px" transition="scale-transition">
+      <v-card class="glass-dialog text-center pa-6">
+        <v-icon 
+          :icon="itemToToggle?.active ? 'mdi-power-off' : 'mdi-power-on'" 
+          :color="itemToToggle?.active ? 'error' : 'success'" 
+          size="64" 
+          class="mb-4 mx-auto"
+        ></v-icon>
+        <v-card-title class="text-h5 font-weight-bold px-0">Confirm Status Change</v-card-title>
+        <v-card-text class="px-0 pb-6 text-medium-emphasis">
           Are you sure you want to change the status of user
-          <strong>{{ itemToToggle?.username }}</strong
-          > to **{{ itemToToggle?.active ? 'Inactive' : 'Active' }}**?
+          <strong>{{ itemToToggle?.username }}</strong> to <strong>{{ itemToToggle?.active ? 'Inactive' : 'Active' }}</strong>?
         </v-card-text>
-        <v-card-actions class="pa-4">
-          <v-spacer></v-spacer>
-          <v-btn color="blue-darken-1" variant="text" @click="closeDelete"
-            >Cancel</v-btn
-          >
+        <v-card-actions class="justify-center pa-0 gap-4">
           <v-btn 
-            :color="itemToToggle?.active ? 'red-darken-1' : 'success'" 
+            color="grey-darken-1" 
+            variant="outlined" 
+            @click="closeDelete"
+            class="px-6"
+            rounded="lg"
+          >Cancel</v-btn>
+          <v-btn 
+            :color="itemToToggle?.active ? 'error' : 'success'" 
             variant="flat" 
             @click="toggleActiveStatus"
+            class="px-6"
+            rounded="lg"
+            elevation="2"
           >
             Confirm {{ itemToToggle?.active ? 'Deactivation' : 'Reactivation' }}
           </v-btn>
-          <v-spacer></v-spacer>
         </v-card-actions>
       </v-card>
     </v-dialog>
   </div>
 </template>
 
-<style>
-.data-table-hover tbody tr:hover {
-  background-color: #f5f5ff !important;
-  transition: background-color 0.2s ease-in-out;
+<style scoped>
+.glass-input :deep(.v-field) {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(4px);
+}
+
+.glass-dialog {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px);
+  border-radius: 24px !important;
+}
+
+.action-btn {
+  opacity: 0.7;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+  background-color: rgba(var(--v-theme-primary), 0.1);
+}
+
+.gap-2 {
+  gap: 8px;
+}
+
+.gap-4 {
+  gap: 16px;
+}
+
+.opacity-20 {
+  opacity: 0.2;
 }
 </style>

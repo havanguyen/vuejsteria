@@ -19,3 +19,13 @@ export const getMyOrdersApi = async () => {
   const response = await axiosInstance.get('/orders/my-orders');
   return response.data.result;
 };
+
+export const getAllOrdersApi = async () => {
+  const response = await axiosInstance.get('/orders');
+  return response.data.result;
+};
+
+export const deleteOrderApi = async (orderId) => {
+  const response = await axiosInstance.delete(`/orders/${orderId}`);
+  return response.data.result;
+};

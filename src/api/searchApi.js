@@ -13,3 +13,8 @@ export const searchProductsApi = async (
   );
   return response.data;
 };
+
+export const syncSearchApi = async () => {
+  const response = await axiosInstance.post(`${API_BASE}/sync`);
+  return response.data;
+};

@@ -24,6 +24,8 @@ export default {
   install: () => {
     axiosInstance.interceptors.request.use(
       (config) => {
+        console.log(`[Axios] Request: ${config.method.toUpperCase()} ${config.url}`, { silent: config.silent });
+
         // NÂNG CẤP: Chỉ show loading nếu request không phải là 'silent'
         if (!config.silent) {
           const loadingStore = useLoadingStore();
@@ -38,6 +40,7 @@ export default {
         return config;
       },
       (error) => {
+        console.error('[Axios] Request Error:', error);
         // NÂNG CẤP: Chỉ hide loading nếu request gốc không 'silent'
         if (!error.config || !error.config.silent) {
           const loadingStore = useLoadingStore();
@@ -49,6 +52,7 @@ export default {
 
     axiosInstance.interceptors.response.use(
       (response) => {
+        console.log(`[Axios] Response: ${response.status} ${response.config.url}`, { silent: response.config.silent });
         // NÂNG CẤP: Chỉ hide loading nếu request không 'silent'
         if (!response.config.silent) {
           const loadingStore = useLoadingStore();
@@ -58,6 +62,7 @@ export default {
       },
       async (error) => {
         const originalRequest = error.config;
+        console.error(`[Axios] Response Error: ${error.code || error.response?.status} ${originalRequest?.url}`, { silent: originalRequest?.silent, error });
 
         // NÂNG CẤP: Chỉ hide loading nếu request không 'silent'
         if (originalRequest && !originalRequest.silent) {
@@ -68,12 +73,35 @@ export default {
         const notificationStore = useNotificationStore();
         const authStore = useAuthStore();
 
-        // Handle Network Errors
-        if (!error.response) {
+        // Handle Network Errors or Timeouts
+        if (!error.response || error.code === 'ECONNABORTED') {
+          const config = originalRequest;
+
+          // Retry logic
+          if (config && !config._retryCount) {
+            config._retryCount = 0;
+          }
+
+          if (config && config._retryCount < 2) {
+            config._retryCount += 1;
+            // Force silent on retry so we don't show global spinner again
+            config.silent = true;
+            console.log(`Retrying request... (${config._retryCount}/2)`);
+            return new Promise(resolve => setTimeout(() => resolve(axiosInstance(config)), 1000));
+          }
+
           if (originalRequest && !originalRequest.silent) {
+            let msg = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra đường truyền.';
+            let title = 'Lỗi kết nối';
+
+            if (error.code === 'ECONNABORTED') {
+              msg = 'Kết nối quá hạn. Vui lòng thử lại.';
+              title = 'Hết thời gian chờ';
+            }
+
             notificationStore.showError(
-              'Không thể kết nối đến máy chủ. Vui lòng kiểm tra đường truyền.',
-              'Lỗi kết nối',
+              msg,
+              title,
               error.message
             );
           }

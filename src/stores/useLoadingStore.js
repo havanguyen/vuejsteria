@@ -7,6 +7,7 @@ export const useLoadingStore = defineStore('loading', () => {
 
   function showLoading() {
     requestCount++;
+    console.log(`[LoadingStore] showLoading. Count: ${requestCount}`);
     if (requestCount > 0) {
       isLoading.value = true;
     }
@@ -14,6 +15,7 @@ export const useLoadingStore = defineStore('loading', () => {
 
   function hideLoading() {
     requestCount--;
+    console.log(`[LoadingStore] hideLoading. Count: ${requestCount}`);
     if (requestCount <= 0) {
       isLoading.value = false;
       requestCount = 0;

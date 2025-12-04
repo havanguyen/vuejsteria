@@ -73,24 +73,30 @@ export const useAuthStore = defineStore(
       router.push('/login');
     }
 
-    async function fetchMyInfo() {
+    async function fetchMyInfo(config = {}) {
       if (!token.value) return;
 
       isProfileLoading.value = true;
       try {
-        const userInfo = await getMyInfoApi();
+        const userInfo = await getMyInfoApi(config);
         user.value = userInfo;
       } catch (error) {
         console.error('Failed to fetch full user info:', error);
         const notificationStore = useNotificationStore();
-        notificationStore.showError(
-          'Could not load profile. Some info may be missing.'
-        );
+
+        // Only show error if it's NOT a 401 (which is handled by interceptor)
+        if (!error.response || error.response.status !== 401) {
+          notificationStore.showWarning(
+            'Không thể tải thông tin cá nhân. Một số chức năng có thể bị hạn chế.',
+            'Cảnh báo hồ sơ'
+          );
+        }
 
         if (error.response && error.response.status === 401) {
           await logout();
         } else {
           try {
+            // Fallback to decoding token if API fails
             const decodedToken = jwtDecode(token.value);
             const roles = getRolesFromScope(decodedToken.scope);
             user.value = {
@@ -125,11 +131,50 @@ export const useAuthStore = defineStore(
       user.value = newUserResponse;
     }
 
+    function loadUserFromToken() {
+      if (!token.value) return false;
+      try {
+        const decodedToken = jwtDecode(token.value);
+        const roles = getRolesFromScope(decodedToken.scope);
+        user.value = {
+          id: decodedToken.sub,
+          username: decodedToken.sub,
+          roles: roles.map((r) => ({ name: r })),
+          profileResponse: null,
+          active: true
+        };
+        return true;
+      } catch (error) {
+        console.error('Failed to load user from token:', error);
+        return false;
+      }
+    }
+
     async function hydrate() {
+      console.log('[AuthStore] Hydrating...');
       if (token.value) {
-        await fetchMyInfo();
+        // 1. Optimistically load user from token so app starts immediately
+        const success = loadUserFromToken();
+        console.log('[AuthStore] Load from token success:', success);
+
+        if (!success) {
+          // Token invalid, clear it
+          console.log('[AuthStore] Token invalid, clearing.');
+          token.value = null;
+          refreshToken.value = null;
+          return;
+        }
+
+        // 2. Fetch fresh info in background (don't await)
+        console.log('[AuthStore] Fetching profile in background (silent)...');
+        fetchMyInfo({ silent: true }).catch(err => console.warn('[AuthStore] Background profile fetch failed:', err));
+
+        // 3. Fetch cart in background
+        console.log('[AuthStore] Fetching cart in background (silent)...');
         const cartStore = useCartStore();
-        await cartStore.fetchCart();
+        cartStore.fetchCart({ silent: true }).catch(err => console.error('[AuthStore] Background cart fetch failed:', err));
+      } else {
+        console.log('[AuthStore] No token found during hydration.');
       }
     }
 
