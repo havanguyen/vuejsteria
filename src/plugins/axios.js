@@ -68,7 +68,20 @@ export default {
         const notificationStore = useNotificationStore();
         const authStore = useAuthStore();
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Handle Network Errors
+        if (!error.response) {
+          if (originalRequest && !originalRequest.silent) {
+            notificationStore.showError(
+              'Không thể kết nối đến máy chủ. Vui lòng kiểm tra đường truyền.',
+              'Lỗi kết nối',
+              error.message
+            );
+          }
+          return Promise.reject(error);
+        }
+
+        // Handle 401 Unauthorized
+        if (error.response.status === 401 && !originalRequest._retry) {
           if (isRefreshing) {
             return new Promise(function (resolve, reject) {
               failedQueue.push({ resolve, reject });
@@ -100,20 +113,35 @@ export default {
             processQueue(_error, null);
             const apiError =
               _error.response?.data?.message || 'Phiên đăng nhập hết hạn';
-            notificationStore.showError(apiError);
+            notificationStore.showWarning(apiError, 'Hết phiên làm việc');
             return Promise.reject(_error);
           } finally {
             isRefreshing = false;
           }
         }
 
-        if (error.response?.status !== 401) {
+        // Handle other errors
+        if (error.response.status !== 401) {
           const apiError =
             error.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại';
-          
+
           // NÂNG CẤP: Chỉ hiện lỗi nếu request không 'silent'
           if (originalRequest && !originalRequest.silent) {
-            notificationStore.showError(apiError);
+            // Check for 5xx Server Errors
+            if (error.response.status >= 500) {
+              notificationStore.showError(
+                'Máy chủ gặp sự cố. Vui lòng thử lại sau.',
+                `Lỗi máy chủ (${error.response.status})`,
+                error.response.data
+              );
+            } else {
+              // 4xx Client Errors (excluding 401 handled above)
+              notificationStore.showError(
+                apiError,
+                'Yêu cầu thất bại',
+                error.response.data
+              );
+            }
           }
         }
 
