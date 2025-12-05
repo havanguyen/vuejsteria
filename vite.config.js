@@ -19,7 +19,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://44.228.171.35',
+        target: 'http://44.228.171.35:9000',
         changeOrigin: true,
         secure: false,
       },
