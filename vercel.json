@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://api.bookteria.xyz/api/v1/:path*"
+      "destination": "http://44.228.171.35:9000/api/v1/:path*"
     },
     {
       "source": "/:path((?!.*\\.).*)",
