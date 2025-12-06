@@ -13,6 +13,7 @@ dist
 dist-ssr
 coverage
 *.local
+client_secret_857896805884-9nv9hhpd31ei59usqip8s2hgsmt9p1th.apps.googleusercontent.com.json
 
 # Editor directories and files
 .vscode/*
