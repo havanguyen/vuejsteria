@@ -140,6 +140,18 @@ const routes = [
     meta: { requiresGuest: true, title: 'Register' }
   },
   {
+    path: '/privacy-policy',
+    name: 'PrivacyPolicy',
+    component: () => import('@/views/PrivacyPolicyPage.vue'),
+    meta: { title: 'Privacy Policy' }
+  },
+  {
+    path: '/terms-of-service',
+    name: 'TermsOfService',
+    component: () => import('@/views/TermsOfServicePage.vue'),
+    meta: { title: 'Terms of Service' }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/NotFoundPage.vue'),

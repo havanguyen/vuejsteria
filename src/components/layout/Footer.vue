@@ -30,6 +30,11 @@
       <div class="text-body-2 text-medium-emphasis">
         &copy; {{ new Date().getFullYear() }} — <strong>Bookteria</strong>. All rights reserved.
       </div>
+      
+      <div class="mt-2">
+        <router-link to="/privacy-policy" class="text-caption text-decoration-none text-medium-emphasis mr-4 hover-link">Privacy Policy</router-link>
+        <router-link to="/terms-of-service" class="text-caption text-decoration-none text-medium-emphasis hover-link">Terms of Service</router-link>
+      </div>
     </v-container>
   </v-footer>
 </template>
@@ -68,5 +73,13 @@ const icons = ref([
 
 .opacity-20 {
   opacity: 0.2;
+}
+
+.hover-link {
+  transition: color 0.2s ease;
+}
+
+.hover-link:hover {
+  color: rgb(var(--v-theme-primary)) !important;
 }
 </style>
