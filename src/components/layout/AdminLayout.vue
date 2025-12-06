@@ -10,12 +10,14 @@
       width="280"
     >
       <div class="d-flex align-center justify-center py-6 px-4">
-        <v-icon
-          color="primary"
-          size="32"
+        <v-img
+          src="/favicon.ico"
+          width="32"
+          height="32"
           class="mr-2 logo-icon"
           :class="{ 'mr-0': rail }"
-        >mdi-book-open-page-variant</v-icon>
+          contain
+        ></v-img>
         <span
           v-if="!rail"
           class="text-h5 font-weight-bold text-primary logo-text"

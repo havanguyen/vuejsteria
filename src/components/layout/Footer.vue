@@ -1,39 +1,36 @@
 <template>
-  <v-footer class="glass-footer text-center d-flex flex-column py-8 mt-auto">
-    <v-container>
-      <v-row justify="center" class="mb-4">
-        <v-col cols="12" md="8">
-          <div class="d-flex align-center justify-center mb-4">
-            <v-icon color="primary" size="32" class="mr-2">mdi-book-open-page-variant</v-icon>
-            <span class="text-h5 font-weight-bold text-primary">Bookteria</span>
-          </div>
-          <div class="text-body-1 text-medium-emphasis mb-6">
-            Your premium destination for books. Discover stories that inspire, educate, and entertain.
+  <v-footer class="glass-footer py-2 mt-auto">
+    <v-container class="py-0">
+      <div class="d-flex flex-column flex-md-row align-center justify-space-between w-100">
+        <!-- Left Side: Logo & Copyright -->
+        <div class="d-flex align-center mb-2 mb-md-0">
+          <v-img src="/favicon.ico" width="24" height="24" class="mr-2" contain></v-img>
+          <span class="text-subtitle-1 font-weight-bold text-primary mr-4">Bookteria</span>
+          <span class="text-caption text-medium-emphasis">
+            &copy; {{ new Date().getFullYear() }}
+          </span>
+        </div>
+
+        <!-- Right Side: Links & Social -->
+        <div class="d-flex align-center flex-wrap justify-center gap-4">
+          <div class="d-flex align-center mr-md-4">
+            <router-link to="/privacy-policy" class="text-caption text-decoration-none text-medium-emphasis mr-4 hover-link">Privacy</router-link>
+            <router-link to="/terms-of-service" class="text-caption text-decoration-none text-medium-emphasis hover-link">Terms</router-link>
           </div>
           
-          <div class="d-flex justify-center gap-4 mb-6">
+          <div class="d-flex gap-2">
             <v-btn
               v-for="icon in icons"
               :key="icon"
               :icon="icon"
-              variant="tonal"
+              variant="text"
+              density="comfortable"
               size="small"
-              color="primary"
+              color="medium-emphasis"
               class="social-btn"
             ></v-btn>
           </div>
-        </v-col>
-      </v-row>
-      
-      <v-divider class="mb-4 opacity-20"></v-divider>
-      
-      <div class="text-body-2 text-medium-emphasis">
-        &copy; {{ new Date().getFullYear() }} — <strong>Bookteria</strong>. All rights reserved.
-      </div>
-      
-      <div class="mt-2">
-        <router-link to="/privacy-policy" class="text-caption text-decoration-none text-medium-emphasis mr-4 hover-link">Privacy Policy</router-link>
-        <router-link to="/terms-of-service" class="text-caption text-decoration-none text-medium-emphasis hover-link">Terms of Service</router-link>
+        </div>
       </div>
     </v-container>
   </v-footer>
@@ -62,17 +59,16 @@ const icons = ref([
 }
 
 .social-btn:hover {
-  transform: translateY(-3px);
-  background-color: rgb(var(--v-theme-primary)) !important;
-  color: white !important;
+  color: rgb(var(--v-theme-primary)) !important;
+  transform: translateY(-2px);
+}
+
+.gap-2 {
+  gap: 8px;
 }
 
 .gap-4 {
   gap: 16px;
-}
-
-.opacity-20 {
-  opacity: 0.2;
 }
 
 .hover-link {

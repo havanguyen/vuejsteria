@@ -13,7 +13,7 @@
         @click="goToHome"
       >
         <div class="d-flex align-center logo-container">
-          <v-icon color="primary" size="32" class="mr-2 logo-icon">mdi-book-open-page-variant</v-icon>
+          <v-img src="/favicon.ico" width="32" height="32" class="mr-2 logo-icon" contain></v-img>
           <span class="text-primary logo-text">Bookteria</span>
         </div>
       </v-toolbar-title>
