@@ -150,6 +150,19 @@ export const useAuthStore = defineStore(
       }
     }
 
+    function loginWithGoogle() {
+      const clientId = '734310611658-p0ufj1nu33n3486h99e29qev29b57l7g.apps.googleusercontent.com';
+      const redirectUri = 'https://bookteria.click';
+      const scope = 'email profile openid';
+      const responseType = 'token'; // Or 'code' if backend exchange is ready, but user asked for logic to move to login page. 'token' or 'code' depends on flow. Usually 'code' for backend exchange.
+      // However, standard OAuth2 for backend exchange uses 'code'.
+      // Let's use 'code' as it's safer and standard for backend processing later.
+
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`;
+
+      window.location.href = authUrl;
+    }
+
     async function hydrate() {
       console.log('[AuthStore] Hydrating...');
       if (token.value) {
@@ -193,7 +206,8 @@ export const useAuthStore = defineStore(
       handleRefreshToken,
       setTokens,
       hydrate,
-      setUser
+      setUser,
+      loginWithGoogle
     };
   },
   {

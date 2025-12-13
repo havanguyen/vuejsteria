@@ -1,0 +1,376 @@
+﻿Kiến trúc Bảo mật Microservices Quy mô lớn: Phân tích Chuyên sâu về Triển khai JWT, Tối ưu hóa Hiệu năng và Tiêu chuẩn Tương lai
+Tóm tắt Điều hành
+Sự chuyển dịch từ các kiến trúc nguyên khối (monolithic) sang hệ thống microservices phân tán đã thay đổi căn bản bối cảnh bảo mật ứng dụng, đòi hỏi một sự thay đổi mô hình từ quản lý phiên (session) có trạng thái sang xác thực dựa trên token phi trạng thái. JSON Web Tokens (JWT) đã trở thành lingua franca (ngôn ngữ chung) cho kỷ nguyên mới này, cho phép lan truyền danh tính qua các dịch vụ riêng biệt mà không gặp phải độ trễ của việc tra cứu cơ sở dữ liệu tập trung. Tuy nhiên, việc áp dụng JWT ở quy mô lớn (high-scale) đưa ra một ma trận phức tạp các thách thức: cân bằng giữa tính phi trạng thái và khả năng thu hồi (revocation), đảm bảo quyền riêng tư thông qua việc tối thiểu hóa token, giảm thiểu vấn đề "thundering herd" trong quá trình làm mới token, và chuẩn bị cho cuộc khủng hoảng mật mã sắp tới của kỷ nguyên hậu lượng tử (post-quantum).
+Báo cáo này cung cấp một phân tích thấu đáo về việc triển khai JWT trong các hệ sinh thái microservices quy mô lớn. Nó tổng hợp các mô hình kiến trúc hiện tại—như phương pháp Phantom Token và bộ nhớ đệm Backend-for-Frontend (BFF)—với các tiêu chuẩn mới nổi như Demonstrating Proof-of-Possession (DPoP) và Selective Disclosure JWTs (SD-JWT). Hơn nữa, báo cáo điều tra các chiến lược tối ưu hóa hiệu năng tại biên (edge), khám phá các sự phức tạp trong vận hành xoay vòng khóa trong môi trường Zero Trust, và phác thảo lộ trình di chuyển sang các thuật toán chữ ký kháng lượng tử như ML-DSA (Dilithium) và FALCON. Phân tích chỉ ra rằng trong khi JWT cung cấp khả năng mở rộng cần thiết cho cơ sở hạ tầng hiện đại, an ninh của chúng phụ thuộc rất nhiều vào việc triển khai các cơ chế "ràng buộc người gửi" (sender-constraining) và quản lý vòng đời nghiêm ngặt để giảm thiểu các rủi ro vốn có trong token dạng bearer.1
+________________
+1. Sự Tiến hóa Kiến trúc: Vai trò của JWT trong Hệ thống Phân tán
+1.1 Sự Chuyển dịch từ Xác thực Có trạng thái sang Phi trạng thái
+Trong các kiến trúc nguyên khối truyền thống, xác thực người dùng đồng nghĩa với các phiên (session) phía máy chủ. Một máy khách sẽ trình bày thông tin xác thực, và máy chủ sẽ tạo ra một ID phiên được lưu trữ trong cơ sở dữ liệu tập trung hoặc bộ nhớ (ví dụ: Redis). Mặc dù an toàn và có thể thu hồi ngay lập tức, mô hình này sụp đổ dưới sức nặng của microservices.2 Trong một hệ thống bao gồm hàng trăm dịch vụ độc lập, việc yêu cầu mỗi dịch vụ truy vấn kho lưu trữ phiên trung tâm cho mọi yêu cầu sẽ tạo ra độ trễ không thể chấp nhận được và tạo ra một điểm nghẽn (bottleneck) cũng như điểm thất bại đơn lẻ (single point of failure).1
+JWT giải quyết vấn đề này bằng cách đóng gói danh tính và các tuyên bố (claims) ủy quyền của người dùng ngay bên trong token. Cách tiếp cận "truyền theo giá trị" (pass-by-value) này cho phép bất kỳ dịch vụ nào có khóa xác minh công khai đều có thể xác thực yêu cầu một cách cục bộ, tách rời dịch vụ khỏi nhà cung cấp danh tính (IdP).1 Tính phi trạng thái này là nền tảng của khả năng mở rộng theo chiều ngang trong Kubernetes và môi trường serverless, nơi các pod và hàm (function) là phù du và không thể dựa vào trạng thái cục bộ hoặc các phiên dính (sticky sessions).9
+Tuy nhiên, nhãn "phi trạng thái" thường gây hiểu lầm trong các môi trường bảo mật cao. JWT hoàn toàn phi trạng thái không thể bị thu hồi trước khi hết hạn, gây ra rủi ro đáng kể nếu bị xâm phạm. Do đó, các kiến trúc hiện đại thường áp dụng mô hình lai, sử dụng các token truy cập (access token) phi trạng thái ngắn hạn cho việc ủy quyền nội bộ tần suất cao và các token làm mới (refresh token) có trạng thái cho việc quản lý phiên dài hạn.11 Sự cân bằng này cho phép hệ thống duy trì hiệu suất cao của kiến trúc phân tán trong khi vẫn giữ được khả năng kiểm soát an ninh cần thiết đối với vòng đời phiên làm việc của người dùng.14
+1.2 Mô hình Lưu lượng Bắc-Nam so với Đông-Tây
+Việc sử dụng JWT khác nhau đáng kể dựa trên hướng lưu lượng truy cập, đòi hỏi các chiến lược bảo mật riêng biệt cho từng loại.
+* Lưu lượng Bắc-Nam (North-South Traffic - Bên ngoài): Đây là lưu lượng truy cập đi vào cụm (cluster) từ các máy khách bên ngoài (trình duyệt, ứng dụng di động). Bảo mật ở lớp này tập trung vào việc giảm thiểu bề mặt tấn công. Các token đục (opaque tokens) có độ entropy cao hoặc "Phantom Tokens" thường được ưu tiên ở đây để ngăn chặn việc rò rỉ chi tiết cơ sở hạ tầng nội bộ (claims) ra internet công cộng.15 API Gateway đóng vai trò là lớp dịch thuật, chuyển đổi các token đục này thành JWT để sử dụng nội bộ.17 Việc này không chỉ bảo vệ thông tin cấu trúc hệ thống mà còn giảm kích thước dữ liệu truyền tải qua mạng di động, nơi băng thông có thể bị hạn chế.19
+* Lưu lượng Đông-Tây (East-West Traffic - Nội bộ): Đây là giao tiếp giữa các dịch vụ (service-to-service) bên trong cụm. Tại đây, bản chất chi tiết (verbose) của JWT là một tài sản. Token hoạt động như một "phong bì dữ liệu," mang theo ngữ cảnh (User ID, Scopes, Tenant ID, Roles) cho phép các dịch vụ hạ nguồn đưa ra các quyết định ủy quyền tự chủ mà không cần gọi lại IdP.20 Trong môi trường lưới dịch vụ (service mesh), các JWT này thường được truyền qua các kết nối mTLS (mutual TLS), tạo nên một lớp bảo mật kép: mTLS xác thực danh tính của dịch vụ (workload identity), trong khi JWT xác thực danh tính của người dùng cuối (end-user identity).15
+1.3 Sự Cộng sinh giữa API Gateway và Service Mesh
+Trong các kiến trúc microservices trưởng thành, trách nhiệm xác thực JWT ngày càng được chuyển giao cho các thành phần cơ sở hạ tầng thay vì mã ứng dụng, giúp tách biệt các mối quan tâm (separation of concerns).
+API Gateway đóng vai trò là tuyến phòng thủ đầu tiên. Nó xử lý việc xác thực ban đầu của chữ ký JWT, kiểm tra thời gian hết hạn (exp), và xác thực nhà phát hành (iss) cũng như khán giả (aud).24 Bằng cách chấm dứt xác thực tại cổng kết nối, các tổ chức đảm bảo rằng các yêu cầu không hợp lệ hoặc không được ủy quyền sẽ không bao giờ tiếp cận được mạng nội bộ, giúp tiết kiệm tài nguyên tính toán và bảo vệ các dịch vụ backend khỏi các cuộc tấn công từ chối dịch vụ.27
+Service Mesh (ví dụ: Istio, Linkerd, Consul) quản lý sự lan truyền danh tính nội bộ. Trong khi Gateway xử lý JWT của người dùng, Service Mesh thường bao bọc kết nối trong mTLS để mã hóa và xác minh danh tính dịch vụ. Các cấu hình nâng cao cho phép lưới xác thực JWT tại cấp độ proxy sidecar của mọi dịch vụ nhận, đảm bảo tư thế Zero Trust nơi mọi bước nhảy (hop) đều được xác thực.15 Kiến trúc này cho phép các nhà phát triển tập trung vào logic nghiệp vụ thay vì các chi tiết triển khai mật mã, giảm thiểu rủi ro sử dụng sai thư viện bảo mật.20
+________________
+2. Các Mẫu Tích hợp Nâng cao (Advanced Integration Patterns)
+2.1 Mẫu Phantom Token: Cân bằng giữa Quyền riêng tư và Tiện ích
+Một lỗ hổng nghiêm trọng trong các triển khai JWT tiêu chuẩn là việc lộ cấu trúc dữ liệu nội bộ. Một JWT chứa các tuyên bố (claims) như role: admin, internal_id: 5930, hoặc tier: platinum cung cấp cho kẻ tấn công thông tin tình báo quý giá về lược đồ và logic backend.17 Hơn nữa, các JWT lớn có thể vượt quá giới hạn tiêu đề HTTP (thường là 8KB hoặc 16KB trên các máy chủ web phổ biến), gây ra lỗi yêu cầu, đặc biệt là trong các mạng di động nơi việc phân mảnh gói tin có thể xảy ra.1
+Mẫu Phantom Token giải quyết các vấn đề này bằng cách tách rời token công khai khỏi token nội bộ 9:
+1. Phía Máy khách: Máy khách nhận được một chuỗi ngẫu nhiên, mờ đục (reference token) khi đăng nhập. Token này không chứa dữ liệu và vô dụng nếu bị giải mã, đóng vai trò như một "tay cầm" (handle) đến phiên làm việc.
+2. API Gateway: Khi máy khách thực hiện yêu cầu, Gateway chặn token mờ đục. Nó truy vấn IdP (hoặc một bộ nhớ đệm phân tán hiệu suất cao như Redis) để "nội soi" (introspect) token.
+3. Chuyển đổi: IdP trả về JWT đầy đủ được liên kết với token tham chiếu đó. Gateway thay thế token mờ đục trong tiêu đề Authorization bằng JWT này trước khi chuyển tiếp yêu cầu đến các microservices backend.
+4. Dịch vụ Nội bộ: Các microservices nhận được một JWT tiêu chuẩn và thực hiện xác thực phi trạng thái, không biết rằng máy khách chưa bao giờ nhìn thấy token này.17
+Mẫu hình này cung cấp "điều tốt nhất của cả hai thế giới": sự an toàn và kích thước nhỏ của token đục cho mạng công cộng, và ngữ cảnh phong phú, phi trạng thái của JWT cho mạng riêng.9 Nó cũng đơn giản hóa việc thu hồi; vì Gateway phải tra cứu JWT, IdP có thể chỉ cần làm mất hiệu lực ánh xạ để thu hồi quyền truy cập ngay lập tức, khắc phục nhược điểm lớn nhất của JWT.34
+2.2 Mẫu Backend-For-Frontend (BFF)
+Đối với các ứng dụng dựa trên trình duyệt (SPAs), việc lưu trữ JWT trong localStorage hoặc sessionStorage khiến chúng dễ bị tổn thương trước các cuộc tấn công Cross-Site Scripting (XSS).36 Nếu kẻ tấn công có thể chạy JavaScript trên trang, chúng có thể trích xuất token và giả mạo người dùng. Mẫu BFF di chuyển trách nhiệm lưu trữ token từ trình duyệt sang một thành phần phía máy chủ (BFF).36
+Trong kiến trúc này, BFF tạo một phiên với frontend sử dụng cookie an toàn, HttpOnly, SameSite. Các cookie này không thể bị đọc bởi JavaScript, vô hiệu hóa các vectơ trộm cắp token qua XSS.37 Khi BFF nhận được yêu cầu với cookie phiên, nó truy xuất JWT liên quan từ bộ nhớ của nó (ví dụ: Redis) và đính kèm nó vào yêu cầu thượng nguồn (upstream) đến các microservices.36 Điều này giữ cho JWT hoàn toàn nằm ngoài môi trường trình duyệt trong khi vẫn duy trì giao tiếp phi trạng thái giữa BFF và các dịch vụ backend.36 Hơn nữa, BFF có thể xử lý việc làm mới token (token refresh) một cách tự động mà không cần sự can thiệp của client, cải thiện trải nghiệm người dùng.36
+2.3 Mẫu Split Token (Token Phân tách)
+Trong các tình huống mà mẫu BFF quá nặng nề hoặc tạo ra độ trễ không mong muốn, Mẫu Split Token cung cấp một giải pháp thay thế nhẹ nhàng hơn. JWT về cơ bản được cắt làm đôi: phần signature (chữ ký) được lưu trữ trong một cookie HttpOnly, trong khi header và payload được lưu trữ trong localStorage hoặc bộ nhớ của trình duyệt.42
+Để ủy quyền một yêu cầu, JavaScript của trình duyệt đọc payload để cập nhật giao diện người dùng (ví dụ: "Xin chào, User") nhưng không thể xây dựng một token hợp lệ để gửi đến API vì nó thiếu chữ ký. Trình duyệt gửi payload trong tiêu đề, và trình duyệt tự động gửi chữ ký trong cookie. Máy chủ (hoặc một proxy) kết hợp lại chúng để tạo thành JWT hợp lệ. Điều này giảm thiểu rủi ro XSS vì kẻ tấn công đánh cắp payload không thể ký các yêu cầu giả mạo, và chúng không thể đọc chữ ký từ cookie.42
+________________
+3. Củng cố An ninh và Giảm thiểu Mối đe dọa
+3.1 Ràng buộc Người gửi (Sender Constraining): DPoP so với mTLS
+Điểm yếu lớn nhất của Bearer JWT tiêu chuẩn là "sở hữu đồng nghĩa với quyền lực" (possession equals authority). Nếu một token bị đánh cắp (qua log, XSS, hoặc tấn công trung gian - MITM), nó có thể bị kẻ tấn công sử dụng lại (replay) cho đến khi hết hạn. Sender Constraining (Ràng buộc người gửi) liên kết token với máy khách đã yêu cầu nó, đảm bảo rằng các token bị đánh cắp là vô dụng đối với các bên không được ủy quyền.44
+3.1.1 Ràng buộc Mutual TLS (mTLS)
+RFC 8705 định nghĩa một phương pháp để ràng buộc token với chứng chỉ X.509 của máy khách. Máy chủ ủy quyền nhúng hàm băm của chứng chỉ máy khách vào JWT (trong claim cnf). Các máy chủ tài nguyên xác minh rằng chứng chỉ máy khách được sử dụng trong quá trình bắt tay TLS khớp với hàm băm trong token.45
+* Ưu điểm: Cực kỳ an toàn; tận dụng lớp vận chuyển (transport layer), khó bị giả mạo.
+* Nhược điểm: Độ phức tạp vận hành cao. Việc quản lý chứng chỉ cho mọi máy khách (đặc biệt là thiết bị di động hoặc trình duyệt) thường không thực tế. Nó không hoạt động tốt qua các trung gian (TLS terminators) trừ khi chúng được cấu hình cẩn thận để chuyển tiếp chứng chỉ máy khách, điều này thường khó khăn trong các môi trường đám mây công cộng.45
+3.1.2 Demonstrating Proof-of-Possession (DPoP)
+Được tiêu chuẩn hóa trong RFC 9449, DPoP là sự thay thế hiện đại ở lớp ứng dụng cho mTLS. Nó ràng buộc token truy cập với một cặp khóa công khai/riêng tư do máy khách nắm giữ, mà không yêu cầu cơ sở hạ tầng PKI phức tạp.4
+* Cơ chế:
+   1. Máy khách tạo một cặp khóa tạm thời (ephemeral) cho phiên làm việc.
+   2. Khi yêu cầu token truy cập, máy khách tạo một "DPoP Proof"—một JWT nhỏ được ký bằng khóa riêng tư của nó—và gửi trong tiêu đề DPoP.
+   3. Máy chủ ủy quyền nhúng thumbprint (dấu vân tay) của khóa công khai vào token truy cập (trong claim cnf).
+   4. Khi truy cập tài nguyên, máy khách ký một DPoP Proof khác (ràng buộc nó với phương thức HTTP và URI cụ thể) và gửi cùng với token truy cập.
+   5. Máy chủ tài nguyên xác minh rằng khóa được sử dụng để ký DPoP Proof khớp với khóa được ràng buộc trong token truy cập.4
+* Lợi thế: Hoạt động trong trình duyệt (sử dụng Web Crypto API), đi qua các proxy/bộ cân bằng tải mà không gặp vấn đề, và ngăn chặn các cuộc tấn công phát lại ngay cả khi token truy cập bị đánh cắp, vì kẻ tấn công không thể tạo ra DPoP proof hợp lệ nếu không có khóa riêng tư.48 Hỗ trợ cho DPoP hiện đã có sẵn trong các framework lớn như Spring Boot 3 và.NET 8, làm cho việc áp dụng trở nên khả thi hơn bao giờ hết.49
+3.2 Xử lý Thu hồi trong Hệ thống Phân tán
+Bản chất "phi trạng thái" của JWT là "gót chân Achilles" của nó đối với việc thu hồi. Nếu một người dùng bị cấm hoặc thay đổi mật khẩu, các token hiện có vẫn hợp lệ cho đến khi hết hạn. Các kiến trúc microservices sử dụng một số chiến lược để giảm thiểu điều này:
+1. Distributed Caching ("Danh sách đen" - Blacklist): Một danh sách đen các ID token bị thu hồi (jti) được duy trì trong một bộ nhớ đệm phân tán như Redis. Middleware trong mỗi dịch vụ (hoặc Gateway) kiểm tra bộ nhớ đệm này trước khi chấp nhận một token.11 Mặc dù điều này đưa vào một kiểm tra có trạng thái, việc tối ưu hóa bằng Bloom filters hoặc lưu trữ đệm kết quả phủ định (negative caching) có thể giảm thiểu độ trễ xuống mức chấp nhận được.56
+2. Token Ngắn hạn + Xoay vòng Refresh Token: Đây là mô hình được áp dụng rộng rãi nhất. Token truy cập chỉ hợp lệ trong một khoảng thời gian rất ngắn (ví dụ: 5-15 phút). Khi chúng hết hạn, máy khách sử dụng Refresh Token để lấy cái mới. Việc thu hồi xảy ra ở cấp độ Refresh Token, được kiểm tra đối với cơ sở dữ liệu. Nếu một người dùng bị cấm, họ sẽ mất quyền truy cập trong vòng vài phút (khi token truy cập hiện tại hết hạn).1
+3. Phiên bản hóa Token (Token Versioning): Một số phiên bản được thêm vào bản ghi người dùng trong cơ sở dữ liệu và được nhúng vào JWT. Nếu người dùng thay đổi mật khẩu hoặc đăng xuất tất cả các thiết bị, phiên bản trong cơ sở dữ liệu được tăng lên. Các dịch vụ kiểm tra xem phiên bản của token có khớp với phiên bản cơ sở dữ liệu hay không. Để tránh truy cập DB trên mỗi yêu cầu, phiên bản này có thể được lưu trong bộ nhớ đệm tại Gateway hoặc Service Mesh.58
+3.3 Giảm thiểu vấn đề "Thundering Herd"
+Trong một hệ thống với hàng triệu máy khách hoạt động, một chiến lược làm mới ngây thơ có thể gây ra Từ chối Dịch vụ (DoS) trên dịch vụ xác thực. Nếu một sự cố ngừng hoạt động xảy ra hoặc một ứng dụng phổ biến được cập nhật, hàng triệu máy khách có thể cố gắng làm mới token của họ cùng một lúc—hiện tượng "Thundering Herd" (Đàn gia súc nổi điên).14
+Các chiến lược để giảm thiểu điều này bao gồm:
+* Jitter (Độ trễ ngẫu nhiên): Máy khách nên thêm một độ trễ ngẫu nhiên (ví dụ: 0-30 giây) vào các yêu cầu làm mới của họ để phân tán tải thay vì gửi đồng loạt tại cùng một thời điểm.60
+* Làm mới Chủ động (Preemptive Refresh): Thay vì chờ lỗi 401 Unauthorized, máy khách nên theo dõi thời hạn token cục bộ và làm mới nó trong nền khi nó còn (ví dụ) 10% thời gian sống. Điều này giúp tránh việc người dùng bị gián đoạn và dàn trải tải cho hệ thống xác thực.61
+* Token Buckets: Dịch vụ xác thực có thể sử dụng giới hạn tốc độ (thuật toán token bucket) để xếp hàng các yêu cầu làm mới thay vì từ chối chúng ngay lập tức, ngăn chặn một cơn bão thử lại (retry storm) làm sập hệ thống.60
+________________
+4. Tối ưu hóa Hiệu năng và Khả năng Mở rộng
+4.1 Thuật toán và Chi phí Tính toán
+Việc lựa chọn thuật toán ký có tác động sâu sắc đến việc sử dụng CPU và thông lượng (throughput) trong các hệ thống quy mô cao.
+* RS256 (RSA Signature với SHA-256): Tiêu chuẩn công nghiệp. Việc xác minh tương đối nhanh, nhưng việc ký rất chậm. Khóa lớn (2048+ bit), làm tăng kích thước token.62
+* ES256 (ECDSA sử dụng P-256): Cung cấp bảo mật tương đương với RSA-3072 với các khóa và chữ ký nhỏ hơn nhiều. Điều này giảm tiêu thụ băng thông, rất quan trọng đối với di động và IoT. Tuy nhiên, việc xác minh ECDSA phức tạp về mặt toán học và có thể chậm hơn xác minh RSA trên một số phần cứng.34
+* EdDSA (Ed25519): Vua hiệu năng. Nó cung cấp tốc độ ký và xác minh cực nhanh (thường nhanh hơn RSA 100 lần) và bảo mật cao với các khóa nhỏ. Nó có tính quyết định (không cần bộ tạo số ngẫu nhiên cho việc ký), làm cho nó an toàn hơn trước các cuộc tấn công kênh bên (side-channel attacks). Chuyển sang EdDSA là một tối ưu hóa chính cho các microservices nhạy cảm về thông lượng.64
+* HS256 (HMAC-SHA256): Mã hóa đối xứng. Cực kỳ nhanh nhưng yêu cầu chia sẻ khóa bí mật với mọi dịch vụ xác thực token. Điều này phá vỡ nguyên tắc cô lập (isolation); nếu một microservice bị xâm phạm, kẻ tấn công có thể giả mạo token cho toàn bộ hệ thống. Nó nên được tránh trong các hệ thống phân tán trừ khi được sử dụng trong một ranh giới tin cậy nghiêm ngặt (ví dụ: chỉ lưu lượng lưới nội bộ).20
+Các nghiên cứu chỉ ra rằng việc chuyển từ RSA sang EdDSA có thể cải thiện thông lượng xác thực hơn 40% trong các tình huống tải cao, đồng thời giảm đáng kể độ trễ CPU.65
+4.2 Xác thực tại Biên (Edge Validation)
+Độ trễ là kẻ thù của trải nghiệm người dùng. Việc xác thực một JWT tại trung tâm dữ liệu trung tâm cho một người dùng ở nửa bên kia thế giới tạo ra thời gian khứ hồi (RTT) không cần thiết. Các mô hình mới nổi tận dụng Điện toán Biên (ví dụ: Cloudflare Workers, AWS Lambda@Edge) để xác thực token gần gũi về mặt địa lý với người dùng.68
+Trong mô hình này, worker tại biên lưu trữ đệm các JWKS (khóa công khai). Khi một yêu cầu đến, worker xác thực chữ ký JWT và các tuyên bố (hết hạn, khán giả) ngay lập tức. Các yêu cầu không hợp lệ bị từ chối tại biên, bảo vệ cơ sở hạ tầng gốc (origin) khỏi các cuộc tấn công DDoS và lưu lượng xấu. Chỉ các yêu cầu đã được xác thực mới được chuyển tiếp đến các microservices cốt lõi.70 Đối với xác thực biên có trạng thái, các công nghệ như Cloudflare Durable Objects cho phép thực thi các danh sách thu hồi token và giới hạn tốc độ toàn cầu với tính nhất quán mạnh, thu hẹp khoảng cách giữa token phi trạng thái và kiểm soát tập trung.68
+4.3 Tối ưu hóa Payload
+Kích thước của payload JWT ảnh hưởng trực tiếp đến độ trễ mạng, đặc biệt là trong các mạng di động nơi giới hạn Đơn vị Truyền Tải Tối đa (MTU) có thể gây ra phân mảnh gói tin. Một JWT lớn (ví dụ: chứa danh sách thành viên nhóm người dùng) có thể dễ dàng vượt quá 4KB, buộc nó phải được chia nhỏ thành nhiều gói TCP, hoặc thậm chí bị từ chối bởi các proxy trung gian.19
+Các Thực hành Tốt nhất về Tối ưu hóa:
+* Tối thiểu hóa Claim: Chỉ bao gồm các tuyên bố thiết yếu (sub, exp, iss, scope) trong token. Sử dụng claim sub (chủ thể) để tra cứu dữ liệu hồ sơ mở rộng ở backend thay vì nhồi nhét tất cả vào token.74
+* Khóa Ngắn: Sử dụng tên claim tiêu chuẩn, ngắn gọn (ví dụ: lat thay vì location_latitude) hoặc các từ viết tắt tùy chỉnh để tiết kiệm byte.
+* Nén: Trong các trường hợp cực đoan, payload JWT có thể được nén (ví dụ: sử dụng Deflate/GZIP) trước khi ký, mặc dù điều này thêm chi phí CPU cho việc giải nén. Giao thức HTTP/2 và HTTP/3 với tính năng nén tiêu đề (HPACK/QPACK) cũng giúp giảm thiểu tác động của các token lớn.73
+________________
+5. Quyền Riêng tư và Tiết lộ Chọn lọc: Thế hệ Token Tiếp theo
+JWT tiêu chuẩn là "được ăn cả ngã về không": nếu bạn trình bày token, người xác minh sẽ thấy mọi claim bên trong nó. Điều này vi phạm Nguyên tắc Đặc quyền Tối thiểu và các quy định về tối thiểu hóa dữ liệu như GDPR. Một microservice xử lý "logging" không cần biết "ngày sinh" của người dùng, nhưng một JWT tiêu chuẩn sẽ tiết lộ điều đó.
+5.1 SD-JWT (RFC 9901)
+Selective Disclosure for JWTs (SD-JWT) đại diện cho một bước nhảy vọt lớn. Hiện đang trong giai đoạn cuối của quá trình tiêu chuẩn hóa (RFC 9901), SD-JWT cho phép người nắm giữ chỉ tiết lộ một tập hợp con các claim cho người xác minh.75
+Cơ chế:
+1. Phát hành: Nhà phát hành ký một JWT nơi các claim nhạy cảm không ở dạng văn bản thuần túy mà được thay thế bằng các bản tóm tắt mật mã (hashes/digests). Nhà phát hành cung cấp riêng cho người nắm giữ các "tiết lộ" (disclosures)—các giá trị thực tế và các muối ngẫu nhiên (salts) được sử dụng để băm chúng.76
+2. Trình bày: Khi người nắm giữ trình bày token cho một người xác minh (ví dụ: một microservice), họ chọn "tiết lộ" nào để bao gồm.
+3. Xác minh: Người xác minh băm các tiết lộ được cung cấp và kiểm tra xem chúng có khớp với các bản tóm tắt trong JWT đã ký hay không. Họ có thể xác minh nhà phát hành đã ký dữ liệu mà không cần nhìn thấy dữ liệu đã bị giữ lại.78
+Các Trường hợp Sử dụng trong Microservices:
+* Kiểm toán Bảo tồn Quyền riêng tư: Một dịch vụ có thể xác minh rằng người dùng "trên 18 tuổi" hoặc "có đăng ký hợp lệ" mà không cần biết tuổi thật hoặc danh tính cụ thể của họ.
+* Tối thiểu hóa Dữ liệu: Một "Dịch vụ Vận chuyển" nhận được một SD-JWT chỉ tiết lộ địa chỉ của người dùng, trong khi "Dịch vụ Thanh toán" nhận được một bản sao tiết lộ chỉ 4 số cuối của thẻ tín dụng, tất cả đều bắt nguồn từ cùng một thông tin xác thực gốc.77
+________________
+6. Vận hành trong Môi trường Điều phối (Kubernetes & SPIFFE)
+6.1 Kubernetes Service Account Token Volume Projection
+Trong lịch sử, Kubernetes gắn một JWT tĩnh, không hết hạn (Service Account Token) vào mọi pod. Đây là một rủi ro bảo mật lớn vì nếu bị lộ, token này có giá trị vĩnh viễn. Kubernetes hiện đại (v1.22+) sử dụng Service Account Token Volume Projection để phát hành các JWT ngắn hạn, bị ràng buộc bởi khán giả.10
+Các token này có đặc điểm:
+* Giới hạn thời gian: Chúng hết hạn (ví dụ: sau 1 giờ) và được kubelet tự động xoay vòng. Ứng dụng phải theo dõi hệ thống tệp để cập nhật token mới.81
+* Ràng buộc Khán giả: Token chỉ hợp lệ cho một đối tượng mục tiêu cụ thể (aud). Nếu một pod làm lộ token của nó, token đó không thể được sử dụng để xác thực đối với API Kubernetes hoặc các dịch vụ không được ủy quyền khác, ngăn chặn việc leo thang đặc quyền.82
+6.2 SPIFFE và JWT-SVID
+Đối với các môi trường không đồng nhất (Kubernetes, VMs, Bare Metal), SPIFFE (Secure Production Identity Framework for Everyone) cung cấp một tiêu chuẩn danh tính thống nhất. SPIRE, triển khai tham chiếu, phát hành JWT-SVIDs (SPIFFE Verifiable Identity Document) cho các workload.83
+Không giống như các token OIDC tiêu chuẩn đại diện cho người dùng, JWT-SVID đại diện cho workload phần mềm. Chúng được mã hóa bằng SPIFFE ID (ví dụ: spiffe://example.org/billing-service). Điều này cho phép ủy quyền chi tiết, dựa trên chính sách giữa các microservices (ví dụ: "Chỉ các workload có SPIFFE ID frontend mới có thể truy cập API backend"). SPIRE tự động hóa việc phát hành, xoay vòng và xác thực các token này, giải quyết hiệu quả vấn đề quản lý khóa trong các hệ thống phân tán lớn.85
+________________
+7. Định hướng Tương lai: Mật mã Hậu Lượng tử (Post-Quantum Cryptography - PQC)
+Sự xuất hiện sắp tới của các máy tính lượng tử có khả năng phá vỡ mật mã (CRQC) đặt ra mối đe dọa hiện hữu đối với các chữ ký JWT hiện tại. Thuật toán của Shor sẽ có thể phá vỡ mã hóa RSA và Đường cong Elliptic (ECDSA/EdDSA) trong thời gian đa thức, khiến hầu như tất cả các JWT hiện tại có thể bị giả mạo.87
+7.1 Tiêu chuẩn hóa NIST và Di chuyển
+Vào tháng 8 năm 2024, NIST đã hoàn thiện bộ thuật toán kháng lượng tử đầu tiên 3:
+1. ML-DSA (Module-Lattice-Based Digital Signature Algorithm): Bắt nguồn từ CRYSTALS-Dilithium. Đây là tiêu chuẩn chính cho chữ ký số đa dụng. Nó cung cấp bảo mật mạnh và hiệu suất hợp lý nhưng tạo ra các chữ ký lớn hơn đáng kể (khoảng 2.4KB) so với RSA/ECDSA.89
+2. SLH-DSA (Stateless Hash-Based Digital Signature Algorithm): Bắt nguồn từ SPHINCS+. Một thuật toán dự phòng dựa trên toán học khác (hàm băm) để bảo vệ chống lại những tiến bộ trong phân tích mật mã lưới. Nó chậm hơn và tạo ra các chữ ký lớn hơn.89
+3. FN-DSA (FFT over NTRU-Lattice-Based Digital Signature Algorithm): Bắt nguồn từ FALCON. Dự kiến sẽ được tiêu chuẩn hóa vào năm 2025. Nó cung cấp các chữ ký nhỏ nhất và xác minh nhanh nhất trong nhóm, làm cho nó trở thành ứng cử viên hứa hẹn nhất cho JWT nơi kích thước là quan trọng.3
+7.2 Tác động đến Microservices
+Việc chuyển đổi sang PQC sẽ không đơn giản là "thay thế tại chỗ" do vấn đề kích thước.
+* Một chữ ký Ed25519 tiêu chuẩn là 64 byte.
+* Một chữ ký Dilithium (ML-DSA) là ~2,420 byte.
+* Một chữ ký Falcon (FN-DSA) là ~666 byte.91
+Việc nhúng một chữ ký 2.5KB vào mỗi tiêu đề HTTP sẽ có tác động đo lường được đến băng thông và độ trễ, có khả năng vượt quá giới hạn kích thước tiêu đề trong các proxy cũ. Điều này củng cố nhu cầu về các mô hình như Phantom Token, nơi token PQC hạng nặng ở lại trong mạng nội bộ an toàn hoặc được tham chiếu bởi một handle nhỏ hơn tại biên.93
+Các thư viện đang phát triển. Thư viện jwt-falcon và các bản cập nhật cho các thư viện jose đang bắt đầu hỗ trợ các thuật toán này.63 Các kiến trúc sư phải lập kế hoạch cho "Chế độ Lai" (Hybrid Mode), nơi các hệ thống chấp nhận cả chữ ký cổ điển và PQC trong giai đoạn chuyển đổi kéo dài nhiều năm.88
+________________
+Kết luận
+Việc sử dụng hiệu quả JWT trong các hệ thống microservices quy mô lớn không còn đơn thuần là tạo token và xác minh chữ ký. Đó là một kỷ luật kiến trúc giao thoa giữa kỹ thuật mạng, điện toán biên và mật mã tiên tiến.
+Các Khuyến nghị Chính cho năm 2025:
+1. Áp dụng DPoP: Chuyển khỏi token Bearer cho các máy khách công cộng. Lợi ích bảo mật chống trộm cắp token là to lớn và công cụ hỗ trợ đã trưởng thành.
+2. Tách rời với Phantom Tokens: Sử dụng token đục cho internet công cộng và JWT cho lưới nội bộ để tối ưu hóa cả bảo mật và hiệu suất.
+3. Tận dụng Biên (Edge): Chuyển việc xác thực ra biên (Cloudflare/AWS Lambda) để bảo vệ tài nguyên nội bộ và giảm độ trễ.
+4. Chuẩn bị cho PQC: Kiểm tra hệ thống về các ràng buộc kích thước tiêu đề và bắt đầu thử nghiệm các lược đồ chữ ký lai. Việc chuyển đổi sang Dilithium/Falcon sẽ yêu cầu thay đổi cơ sở hạ tầng, không chỉ là cập nhật mã.
+5. Tự động hóa Xoay vòng: Khóa tĩnh là một gánh nặng. Triển khai các chiến lược xoay vòng và lưu trữ đệm tự động để đảm bảo khả năng phục hồi mà không có thời gian chết.
+Bằng cách xếp lớp các mẫu hình tiên tiến này—DPoP cho ràng buộc, SD-JWT cho quyền riêng tư và xác thực biên cho tốc độ—các tổ chức có thể xây dựng một lớp xác thực microservices không chỉ có khả năng mở rộng mà còn kiên cường trước bối cảnh đe dọa tinh vi của tương lai.
+________________
+Bảng Phân tích So sánh
+Bảng 1: Cơ chế Ràng buộc Token (Token Binding Mechanisms)
+Tính năng
+	Bearer Token (Tiêu chuẩn)
+	Mutual TLS (mTLS)
+	DPoP (RFC 9449)
+	Nguyên tắc Bảo mật
+	Sở hữu = Quyền lực
+	Ràng buộc Lớp Vận chuyển
+	Ràng buộc Lớp Ứng dụng
+	Bảo vệ Replay
+	Không
+	Cao (gắn với kênh TLS)
+	Cao (gắn với khóa riêng & nonce)
+	Độ phức tạp
+	Thấp
+	Cao (Quản lý Chứng chỉ)
+	Trung bình (Tạo khóa ở client)
+	Hỗ trợ Trình duyệt
+	Tự nhiên
+	Khó khăn (Ma sát UX)
+	Xuất sắc (Web Crypto API)
+	Tương thích Proxy
+	Xuất sắc
+	Kém (Vấn đề TLS Termination)
+	Xuất sắc (Dựa trên HTTP Header)
+	Trường hợp Sử dụng Tốt nhất
+	API Nội bộ/Rủi ro thấp
+	S2S, Ngân hàng Bảo mật Cao
+	SPA, Ứng dụng Di động, Internet Công cộng
+	Bảng 2: So sánh Thuật toán Ký JWT
+Thuật toán
+	Loại
+	Cơ sở Bảo mật
+	Hiệu năng
+	Kích thước Chữ ký
+	Khả năng Tương lai
+	RS256
+	Bất đối xứng
+	Phân tích thừa số (RSA)
+	Xác minh Nhanh, Ký Chậm
+	~256 bytes
+	Dễ bị tấn công Lượng tử
+	ES256
+	Bất đối xứng
+	Đường cong Elliptic (DLP)
+	Cân bằng
+	~64 bytes
+	Dễ bị tấn công Lượng tử
+	EdDSA
+	Bất đối xứng
+	Đường cong Elliptic (Edwards)
+	Rất Nhanh
+	~64 bytes
+	Dễ bị tấn công Lượng tử
+	ML-DSA
+	PQC
+	Lưới (Dilithium)
+	Nhanh
+	~2,420 bytes
+	Kháng Lượng tử
+	FN-DSA
+	PQC
+	Lưới (Falcon)
+	Rất Nhanh
+	~666 bytes
+	Kháng Lượng tử
+	Bảng 3: Đánh đổi trong Chiến lược Thu hồi (Revocation Trade-offs)
+Chiến lược
+	Độ trễ
+	Tính nhất quán
+	Khả năng mở rộng
+	Độ phức tạp
+	Hết hạn Ngắn
+	Không
+	Cuối cùng (Cửa sổ rủi ro)
+	Cao
+	Thấp
+	Blacklist (DB/Redis)
+	Trung bình (Network hop)
+	Mạnh
+	Trung bình (Tải DB)
+	Trung bình
+	Sự kiện Phân tán
+	Thấp (Kiểm tra cục bộ)
+	Cuối cùng (Độ trễ lan truyền)
+	Cao
+	Cao (Hạ tầng Pub/Sub)
+	Phantom Tokens
+	Thấp (Kiểm tra Gateway)
+	Mạnh
+	Cao
+	Trung bình (Phụ thuộc Gateway)
+	________________
+Phân tích Chi tiết
+1. Cơ bản về JWT trong Kiến trúc Microservices
+1.1 Kiến trúc của Niềm tin
+Trong môi trường microservices, niềm tin được phi tập trung hóa. Không giống như monolith nơi một lệnh gọi hàm kiểm tra phiên của người dùng, một microservice có thể nhận yêu cầu từ API Gateway, một microservice khác, hoặc một bộ lập lịch công việc. JWT đóng vai trò như một tuyên bố quyền lực có thể xác minh. Nó khẳng định: "Nhà cung cấp Danh tính (IdP) đã xác thực người dùng này tại thời điểm $T$, và họ sở hữu những quyền cụ thể này."
+Quyết định kiến trúc quan trọng là độ sâu xác thực (validation depth).
+* Xác thực Chỉ tại Gateway: Gateway xác thực token và chuyển thông tin người dùng trong các tiêu đề văn bản thuần túy (ví dụ: X-User-ID). Cách này nhanh nhưng không an toàn nếu mạng nội bộ bị xâm phạm (vi phạm Zero Trust).25
+* Xác thực Cấp Dịch vụ: Mọi dịch vụ đều xác thực JWT. Điều này thực thi Zero Trust nhưng yêu cầu mọi dịch vụ phải lấy và lưu trữ đệm các khóa công khai của IdP (JWKS). Mô hình này mạnh mẽ nhưng tạo ra lưu lượng "chatty" (nhiều lời) đến IdP.6
+* Xác thực Cấp Lưới (Mesh-Level): Sidecar của Service Mesh (ví dụ: Envoy) chặn yêu cầu, xác thực JWT dựa trên các khóa đã lưu trong bộ nhớ đệm, và chỉ chuyển tiếp yêu cầu đến container ứng dụng nếu hợp lệ. Điều này cung cấp bảo mật Zero Trust mà không cần thay đổi mã ứng dụng.15
+1.2 Claims và Độ chi tiết (Granularity)
+Một sai lầm phổ biến là làm quá tải payload của JWT. Bao gồm toàn bộ danh sách quyền hoặc biểu đồ xã hội của người dùng trong token làm phình to kích thước tiêu đề, tăng độ trễ và chạm ngưỡng giới hạn (ví dụ: giới hạn tiêu đề mặc định 4KB của Nginx).73
+Thực hành tốt nhất: Sử dụng JWT cho Xác thực (Bạn là ai?) và Ủy quyền thô (Bạn có vai trò gì?). Đối với các kiểm tra quyền chi tiết (Bạn có thể chỉnh sửa Tài liệu #123 không?), dịch vụ nên sử dụng ID chủ thể từ token để truy vấn một công cụ chính sách cục bộ (như Open Policy Agent) hoặc cơ sở dữ liệu.25
+2. Các Tiêu chuẩn Mới nổi: DPoP và RFC 9068
+2.1 RFC 9068: Tiêu chuẩn hóa Token Truy cập
+Trong nhiều năm, các token truy cập JWT là các cấu trúc đặc biệt (ad-hoc). RFC 9068 định nghĩa một "Hồ sơ JWT cho Token Truy cập OAuth 2.0" tiêu chuẩn. Nó bắt buộc các claim cụ thể (iss, exp, aud, sub, client_id, jti) và một tiêu đề cụ thể typ là at+jwt.74 Việc áp dụng tiêu chuẩn này đảm bảo khả năng tương tác giữa các IdP và máy chủ tài nguyên khác nhau, đơn giản hóa việc triển khai thư viện và giảm lỗi phân tích cú pháp.
+2.2 DPoP: Sự Kết thúc của Bearer Tokens?
+Token Bearer giống như tiền mặt: ai cầm nó đều có thể tiêu nó. DPoP biến đổi token thành thứ gì đó giống thẻ tín dụng hơn (vô dụng nếu không có PIN/chữ ký). Cơ chế dựa vào việc máy khách tạo một cặp khóa tạm thời. "Proof" là một JWT được ký bởi khóa này.
+Máy chủ Ủy quyền ràng buộc token truy cập với khóa công khai của cặp khóa.
+$H(Access\_Token) \leftrightarrow Public\_Key$
+Khi API nhận được yêu cầu, nó xác minh:
+1. Chữ ký DPoP Proof hợp lệ.
+2. Khóa công khai trong DPoP Proof khớp với khóa được ràng buộc trong Token Truy cập.
+3. htu (HTTP URI) và htm (HTTP Method) của DPoP Proof khớp với yêu cầu đến.
+4. jti (ID duy nhất) của DPoP Proof chưa được nhìn thấy gần đây (bảo vệ chống replay).4
+Điều này tạo ra một hàng phòng thủ đáng gờm. Ngay cả khi một kẻ nội gián độc hại sao chép toàn bộ cơ sở dữ liệu các token truy cập, chúng không thể sử dụng chúng vì chúng không sở hữu các khóa riêng tư nằm trong trình duyệt/thiết bị của người dùng.52
+3. Khả năng Mở rộng và "Thundering Herd"
+3.1 Cơn bão Làm mới (Refresh Storm)
+Khi một dịch vụ xác thực gặp sự cố và phục hồi, hoặc khi một ứng dụng phổ biến gửi thông báo đẩy (push notification), hàng triệu máy khách có thể thức dậy cùng một lúc. Nếu token của họ hết hạn, tất cả đều tấn công endpoint /refresh cùng một lúc.
+Giải pháp:
+* Exponential Backoff: Máy khách không được thử lại ngay lập tức khi thất bại. Họ nên đợi $2^n + jitter$ giây.60
+* Hết hạn Ngẫu nhiên: Khi phát hành token, IdP nên thêm một biến thể nhỏ vào thời gian hết hạn (ví dụ: 15 phút $\pm$ 30 giây) để các token không hết hạn vào cùng một mili-giây chính xác.59
+* Mẫu Bulkhead: Cô lập cơ sở hạ tầng endpoint làm mới để mức tăng đột biến tải ở đó không làm sập các dịch vụ đăng nhập chính hoặc xác thực token.100
+3.2 Chiến lược Bộ nhớ đệm (Caching Strategies)
+Việc xác thực chữ ký JWT yêu cầu khóa công khai của nhà phát hành. Việc lấy khóa này từ endpoint .well-known/jwks.json trên mỗi yêu cầu là thảm họa.
+Chiến lược:
+1. Cache JWKS: Các dịch vụ nên lưu trữ đệm các khóa công khai, tuân thủ các tiêu đề HTTP Cache-Control.
+2. Tải lại Lười biếng (Lazy Reload): Nếu một token đến với một kid (Key ID) không xác định, lúc đó mới kích hoạt làm mới JWKS, nhưng giới hạn tốc độ hành động này để ngăn chặn kẻ tấn công làm ngập dịch vụ bằng các token được ký bởi khóa ngẫu nhiên (điều này sẽ buộc làm mới JWKS liên tục).101
+3. Lưu trữ đệm Tích cực: Đối với các xác thực tốn kém (ví dụ: liên quan đến tra cứu DB để thu hồi), hãy lưu trữ đệm kết quả của việc xác thực trong vài giây.
+4. Chân trời Hậu Lượng tử (Post-Quantum Horizon)
+Việc di chuyển sang các thuật toán Kháng Lượng tử không phải là giả thuyết; đó là một yêu cầu tuân thủ đang ở phía chân trời (NIST đã hoàn thiện các tiêu chuẩn). Tác động đối với microservices chủ yếu là chi phí mạng (network overhead).
+Thay thế chữ ký ECDSA 256-bit bằng chữ ký Dilithium 19,360-bit (khoảng 2.4KB) làm tăng kích thước của mọi yêu cầu được xác thực thêm ~2.5KB. Trong một lưới xử lý 100,000 RPS, điều này thêm 250 MB/s chi phí băng thông nội bộ.
+Giảm thiểu Kiến trúc:
+* Chuyển sang HTTP/2 hoặc HTTP/3: Các giao thức này nén tiêu đề (HPACK/QPACK), giúp giảm thiểu tác động của các token lớn.
+* Token Tham chiếu Nội bộ: Sử dụng mẫu Phantom Token tích cực hơn. Token PQC khổng lồ ở lại tại Gateway; các dịch vụ nội bộ sử dụng tham chiếu nhẹ hoặc token ngắn hạn được ký đối xứng (HMAC) do Gateway tạo ra.93
+5. Nghiên cứu Tình huống: Xác thực Biên Cloudflare
+Kiến trúc của Cloudflare minh họa sức mạnh của xác thực biên. Bằng cách phân phối logic xác thực đến hàng nghìn vị trí biên sử dụng Cloudflare Workers, họ xác thực JWT trước khi yêu cầu đi qua mạng trục (backbone).
+* Lưu trữ Khóa: JWKS được lưu trữ đệm trong phạm vi toàn cầu của Worker hoặc kho KV.
+* Logic: Worker kiểm tra nbf, exp, và iss.
+* Hiệu năng: Việc xác thực diễn ra trong mili-giây một con số (single-digit milliseconds).
+* Trạng thái: Sử dụng Durable Objects, họ có thể thực thi các giới hạn tốc độ toàn cầu hoặc danh sách thu hồi cập nhật theo thời gian thực, cung cấp các thuộc tính bảo mật "có trạng thái" tại biên.68
+Thiết lập này giảm tải cho các máy chủ gốc bằng cách từ chối lưu lượng không được xác thực ngay tại nguồn, tiết kiệm băng thông và chi phí tính toán.
+________________
+Báo cáo này nhấn mạnh rằng JWT là một tiêu chuẩn sống. Việc triển khai chúng vào năm 2025 đòi hỏi sự xếp lớp tinh vi của các mẫu hình—DPoP cho ràng buộc, Phantom Tokens cho quyền riêng tư, và bộ nhớ đệm mạnh mẽ cho hiệu suất—để đáp ứng nhu cầu của các microservices hiện đại, an toàn và có khả năng mở rộng.
+Nguồn trích dẫn
+1. Architecture Patterns in Microservices: Security with JWT - Paradigma Digital, truy cập vào tháng 12 11, 2025, https://en.paradigmadigital.com/dev/architecture-patterns-microservices-security-jwt/
+2. 19 Essential Microservices Patterns for System Design Interviews, truy cập vào tháng 12 11, 2025, https://www.designgurus.io/blog/19-essential-microservices-patterns-for-system-design-interviews
+3. Post-Quantum Cryptography (PQC) Standardization - 2025 Update, truy cập vào tháng 12 11, 2025, https://postquantum.com/post-quantum/cryptography-pqc-nist/
+4. RFC 9449 - OAuth 2.0 Demonstrating Proof of Possession (DPoP) - IETF Datatracker, truy cập vào tháng 12 11, 2025, https://datatracker.ietf.org/doc/html/rfc9449
+5. The future of authentication is both stateful and stateless - Clerk, truy cập vào tháng 12 11, 2025, https://clerk.com/blog/future-of-auth-stateless-and-stateful
+6. Understanding Authentication Strategies in Microservice Architecture | by Shikha Pandey, truy cập vào tháng 12 11, 2025, https://pandeyshikha075.medium.com/understanding-authentication-strategies-in-microservice-architecture-da7aa0f4c09b
+7. Stateless Authentication: Understanding Token-Based Auth - Descope, truy cập vào tháng 12 11, 2025, https://www.descope.com/learn/post/stateless-authentication
+8. JWT in Microservices - DEV Community, truy cập vào tháng 12 11, 2025, https://dev.to/dazevedo/jwt-in-microservices-ac5
+9. The Different Token Types and Formats Explained | by Curity - Medium, truy cập vào tháng 12 11, 2025, https://curity.medium.com/the-different-token-types-and-formats-explained-19dd8b947b2e
+10. Service Accounts | Kubernetes, truy cập vào tháng 12 11, 2025, https://kubernetes.io/docs/concepts/security/service-accounts/
+11. oauth 2.0 - How can I revoke a JWT token? - Stack Overflow, truy cập vào tháng 12 11, 2025, https://stackoverflow.com/questions/31919067/how-can-i-revoke-a-jwt-token
+12. JWT Token Revocation: Centralized Control vs. Distributed Kafka Handling - DZone, truy cập vào tháng 12 11, 2025, https://dzone.com/articles/jwt-token-revocation
+13. How does a JWT refresh token improve security?, truy cập vào tháng 12 11, 2025, https://security.stackexchange.com/questions/233685/how-does-a-jwt-refresh-token-improve-security
+14. Which Refresh Token Strategy for JWT Auth in Java Microservices? Seeking Advice! : r/SpringBoot - Reddit, truy cập vào tháng 12 11, 2025, https://www.reddit.com/r/SpringBoot/comments/1mx2icv/which_refresh_token_strategy_for_jwt_auth_in_java/
+15. API Gateway vs Service Mesh: Beyond the North-South/East-West Myth | by Raj Kundalia, truy cập vào tháng 12 11, 2025, https://medium.com/@rajkundalia/api-gateway-vs-service-mesh-beyond-the-north-south-east-west-myth-c67406984a46
+16. API Gateway & Service Mesh: Bridging API Management and Zero-Trust | Kong Inc., truy cập vào tháng 12 11, 2025, https://konghq.com/blog/enterprise/api-gateway-service-mesh-and-zero-trust
+17. Phantom Tokens vs. Transaction Tokens: What Security Teams Must Know - Non-Human Identity Management Group, truy cập vào tháng 12 11, 2025, https://nhimg.org/community/nhi-support-guidance-forum/phantom-tokens-vs-transaction-tokens-what-security-teams-must-know/
+18. Strategies for Integrating OAuth With API Gateways - Nordic APIs, truy cập vào tháng 12 11, 2025, https://nordicapis.com/strategies-for-integrating-oauth-with-api-gateways/
+19. Understanding JWT Token Size & URL Safety: Why It Matters - Web Design Penarth, truy cập vào tháng 12 11, 2025, https://webdesignpenarth.co.uk/2025/08/07/why-jwt-token-size-and-url-safety-matters/
+20. Using JWTs to Authenticate Services Unravels API Gateways | Solo.io, truy cập vào tháng 12 11, 2025, https://www.solo.io/blog/jwts-authenticate-services-api-gateways
+21. Do I Need an API Gateway if I Use a Service Mesh? - ceposta Technology Blog, truy cập vào tháng 12 11, 2025, https://blog.christianposta.com/microservices/do-i-need-an-api-gateway-if-i-have-a-service-mesh/
+22. 5 Best Practices for Securing Microservices at Scale - Kong Inc., truy cập vào tháng 12 11, 2025, https://konghq.com/blog/engineering/5-best-practices-securing-microservices-scale
+23. JWT validation with Istio service mesh | by K Rohith - Medium, truy cập vào tháng 12 11, 2025, https://medium.com/@rohithykrohith/jwt-validation-with-istio-service-mesh-3a3014715c44
+24. API Gateway vs Service Mesh: How to Choose? - API7.ai, truy cập vào tháng 12 11, 2025, https://api7.ai/learning-center/api-gateway-guide/api-gateway-vs-service-mesh
+25. Microservices Security - OWASP Cheat Sheet Series, truy cập vào tháng 12 11, 2025, https://cheatsheetseries.owasp.org/cheatsheets/Microservices_Security_Cheat_Sheet.html
+26. Authentication and authorization in a microservice architecture: Part 2, truy cập vào tháng 12 11, 2025, https://microservices.io/post/architecture/2025/05/28/microservices-authn-authz-part-2-authentication.html
+27. Securing APIs with The Phantom Token Approach - Curity, truy cập vào tháng 12 11, 2025, https://curity.io/resources/learn/phantom-token-pattern/
+28. Service Mesh Security with Istio | overcast blog, truy cập vào tháng 12 11, 2025, https://overcast.blog/service-mesh-security-with-istio-d08198a9520e
+29. Service Mesh Architecture with Istio | Baeldung on Ops, truy cập vào tháng 12 11, 2025, https://www.baeldung.com/ops/istio-service-mesh
+30. Updating OWASP's Microservice Security Cheat Sheet: Identity Propagation Patterns, truy cập vào tháng 12 11, 2025, https://www.innoq.com/en/blog/2025/08/owasp-microservice-security-cheat-sheet-update-identity-propagation/
+31. Phantom Token Architecture: Protecting Sensitive Data in OAuth - Tyler Pinho, truy cập vào tháng 12 11, 2025, https://www.tylerpinho.com/tutorials/phantom-token-architecture
+32. Understanding The Phantom Token Approach - Nordic APIs, truy cập vào tháng 12 11, 2025, https://nordicapis.com/understanding-the-phantom-token-approach/
+33. Phantom Token Flow - LDAPWiki, truy cập vào tháng 12 11, 2025, https://ldapwiki.com/wiki/Wiki.jsp?page=Phantom%20Token%20Flow
+34. A Guide to Bearer Tokens: JWT vs. Opaque Tokens - Permit.io, truy cập vào tháng 12 11, 2025, https://www.permit.io/blog/a-guide-to-bearer-tokens-jwt-vs-opaque-tokens
+35. JWT vs Opaque Tokens: All You Need to Know | by Udara Pathum | Identity Beyond Borders, truy cập vào tháng 12 11, 2025, https://medium.com/identity-beyond-borders/jwt-vs-opaque-tokens-all-you-need-to-know-307bf19bade8
+36. The Backend-for-Frontend (BFF) Pattern: Secure Auth Done Right | by Michal Stefanow, truy cập vào tháng 12 11, 2025, https://medium.com/@michalstefanow.marek/the-backend-for-frontend-bff-pattern-secure-auth-done-right-4afdb2847c5d
+37. Where to store JWT in browser? How to protect against CSRF? - Stack Overflow, truy cập vào tháng 12 11, 2025, https://stackoverflow.com/questions/27067251/where-to-store-jwt-in-browser-how-to-protect-against-csrf
+38. LocalStorage vs Cookies: the best-practice guide to storing JWT tokens securely in your front-end, truy cập vào tháng 12 11, 2025, https://www.cyberchief.ai/2023/05/secure-jwt-token-storage.html
+39. Authentication and authorization in a microservice architecture: Part 3 - implementing authorization using JWT-based access tokens, truy cập vào tháng 12 11, 2025, https://microservices.io/post/architecture/2025/07/22/microservices-authn-authz-part-3-jwt-authorization.html
+40. The Developer's Guide to JWT Storage - Descope, truy cập vào tháng 12 11, 2025, https://www.descope.com/blog/post/developer-guide-jwt-storage
+41. Backends for Frontends Pattern - Azure Architecture Center | Microsoft Learn, truy cập vào tháng 12 11, 2025, https://learn.microsoft.com/en-us/azure/architecture/patterns/backends-for-frontends
+42. How Should You Serve Your Access Tokens: JWTs, Phantom, or Split? | Curity, truy cập vào tháng 12 11, 2025, https://curity.io/blog/how-should-you-serve-your-access-tokens-jwts-phantom-or-split/
+43. Split Token Approach: Enhancing API Token Security | Curity, truy cập vào tháng 12 11, 2025, https://curity.io/resources/learn/split-token-pattern/
+44. From Idea to Standard How the JWT Profile for OAuth 2.0 Access Tokens Became RFC9068, truy cập vào tháng 12 11, 2025, https://auth0.com/blog/how-the-jwt-profile-for-oauth-20-access-tokens-became-rfc9068/
+45. Sender-constrained Access Tokens mTLS vs DPoP - SecureAuth Product Docs, truy cập vào tháng 12 11, 2025, https://docs.secureauth.com/ciam/en/sender-constrained-access-tokens-mtls-vs-dpop.html
+46. OAuth2 Sender Constraint Support: DPOP and MTLS with Brian Campbell - Identity, Unlocked. - Auth0, truy cập vào tháng 12 11, 2025, https://identityunlocked.auth0.com/public/49/Identity%2C-Unlocked.--bed7fada/4d4e8add
+47. JWTs in OAuth and OpenID Connect | by Takahiko Kawasaki - Medium, truy cập vào tháng 12 11, 2025, https://darutk.medium.com/jwts-in-oauth-and-openid-connect-19c8029551d5
+48. Demonstrating Proof-of-Possession (DPoP): A Complete Guide for Modern OAuth Security, truy cập vào tháng 12 11, 2025, https://www.authgear.com/post/demonstrating-proof-of-possession-dpop
+49. Implementing DPoP with Auth0, truy cập vào tháng 12 11, 2025, https://auth0.com/blog/implementing-dpop-with-auth0/
+50. Protect Your Access Tokens with DPoP (Demonstrating Proof of Possession) - Auth0, truy cập vào tháng 12 11, 2025, https://auth0.com/blog/protect-your-access-tokens-with-dpop/
+51. Demonstrating Proof of Possession Overview - Curity, truy cập vào tháng 12 11, 2025, https://curity.io/resources/learn/dpop-overview/
+52. Implementing OAuth 2.0 with Proof-of-Possession (DPoP) to Mitigate Risks from Leaked or Stolen Access Tokens - NITHIN SIVA, truy cập vào tháng 12 11, 2025, https://nthinsiva.medium.com/implementing-oauth-2-0-6f22565d9d3d
+53. Overview :: Spring Authorization Server, truy cập vào tháng 12 11, 2025, https://docs.spring.io/spring-authorization-server/reference/overview.html
+54. Secure OAuth 2.0 Access Tokens with Proofs of Possession | Okta Developer, truy cập vào tháng 12 11, 2025, https://developer.okta.com/blog/2024/09/10/angular-dpop-jwt
+55. Revoke Access Using a JWT Blacklist | SuperTokens, truy cập vào tháng 12 11, 2025, https://supertokens.com/blog/revoking-access-with-a-jwt-blacklist
+56. Caching strategies for authentication | by Ted Spence | tedspence.com, truy cập vào tháng 12 11, 2025, https://tedspence.com/caching-strategies-for-authentication-8346a040234d
+57. How to reduce delay in service to service communication to handle Authentication and authorization in microservices architecture using flask - Stack Overflow, truy cập vào tháng 12 11, 2025, https://stackoverflow.com/questions/79036019/how-to-reduce-delay-in-service-to-service-communication-to-handle-authentication
+58. 5 Essential JWT Security Strategies: Rotation and Revocation | by Arunangshu Das, truy cập vào tháng 12 11, 2025, https://medium.com/@arunangshudas/5-essential-jwt-security-strategies-rotation-and-revocation-4b8bae94ed18
+59. Beating the Thundering Herd: How to Stop Your API from Getting Stampeded | by Laxman Pokhrel | Medium, truy cập vào tháng 12 11, 2025, https://medium.com/@laxman.pokhrel.101/beating-the-thundering-herd-how-to-stop-your-api-from-getting-stampeded-ffafad2abcb6
+60. Thundering Herd Problem and Systematic Mitigations (Part 2) | by Vanjikumaran Sivajothy, truy cập vào tháng 12 11, 2025, https://medium.com/@vanjikumaran/thundering-herd-problem-and-systematic-mitigations-part-2-411e57ba79d2
+61. Best Practices for handing customers with incorrect clocks - Okta Developer Community, truy cập vào tháng 12 11, 2025, https://devforum.okta.com/t/best-practices-for-handing-customers-with-incorrect-clocks/12491
+62. RSA JWT key rotation period? - Stack Overflow, truy cập vào tháng 12 11, 2025, https://stackoverflow.com/questions/51301843/rsa-jwt-key-rotation-period
+63. Post-Quantum JWTs. A modular approach to traditional JWTs | by Aman Yadav | Medium, truy cập vào tháng 12 11, 2025, https://medium.com/@amanyadavlko2502/post-quantum-jwts-592537c089d1
+64. Enhancing Microservices Security with Token-Based Access Control Method - MDPI, truy cập vào tháng 12 11, 2025, https://www.mdpi.com/1424-8220/23/6/3363
+65. Improve JWT Algorithm And Boosting Microservice Performance - DEV Community, truy cập vào tháng 12 11, 2025, https://dev.to/jackynote/improve-jwt-algorithm-and-boosting-microservice-performance-465d
+66. New Text Document.txt
+67. Improving Security and Session Handling in Distributed Networks with JSON Web Tokens - kth .diva, truy cập vào tháng 12 11, 2025, https://kth.diva-portal.org/smash/get/diva2:1939019/FULLTEXT02.pdf
+68. How to Validate JWTs Efficiently at the Edge with Cloudflare Workers and Vercel | SSOJet, truy cập vào tháng 12 11, 2025, https://ssojet.com/blog/how-to-validate-jwts-efficiently-at-the-edge-with-cloudflare-workers-and-vercel
+69. Authorization@Edge – How to Use Lambda@Edge and JSON Web Tokens to Enhance Web Application Security | Networking & Content Delivery - AWS, truy cập vào tháng 12 11, 2025, https://aws.amazon.com/blogs/networking-and-content-delivery/authorizationedge-how-to-use-lambdaedge-and-json-web-tokens-to-enhance-web-application-security/
+70. JSON Web Tokens validation - API Shield - Cloudflare Docs, truy cập vào tháng 12 11, 2025, https://developers.cloudflare.com/api-shield/security/jwt-validation/
+71. Validate JWTs · Cloudflare One docs, truy cập vào tháng 12 11, 2025, https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/
+72. How I Built a Real-Time AI App with Cloudflare Durable Objects and Workers AI - Cris O., truy cập vào tháng 12 11, 2025, https://www.cris-o.com/notes/real-time-ai-interview-app-with-cloudflare/
+73. What are the disadvantages of JSON Web Token? - Tencent Cloud, truy cập vào tháng 12 11, 2025, https://www.tencentcloud.com/techpedia/101724
+74. RFC 9068 - JSON Web Token (JWT) Profile for OAuth 2.0 Access Tokens - IETF Datatracker, truy cập vào tháng 12 11, 2025, https://datatracker.ietf.org/doc/html/rfc9068
+75. RFC 9901 - Selective Disclosure for JSON Web Tokens - IETF Datatracker, truy cập vào tháng 12 11, 2025, https://datatracker.ietf.org/doc/rfc9901/
+76. SD-JWT Programming | Medium, truy cập vào tháng 12 11, 2025, https://darutk.medium.com/sd-jwt-programming-df1e43560aa9
+77. Your JWTs Are Now Outdated — Meet Selective Disclosure (RFC 9901) | MojoAuth - Advanced Authentication & Identity Solutions, truy cập vào tháng 12 11, 2025, https://mojoauth.com/blog/jwts-are-now-outdated-meet-selective-disclosure-rfc-9901
+78. Selective Disclosure for JWTs (SD-JWT) | Curity Identity Server, truy cập vào tháng 12 11, 2025, https://curity.io/resources/learn/selective-disclosure-jwt/
+79. SD-JWT VC: The Ultimate Guide to Verifiable Credentials with Selective Disclosure, truy cập vào tháng 12 11, 2025, https://docs.walt.id/concepts/digital-credentials/sd-jwt-vc
+80. Authenticating | Kubernetes, truy cập vào tháng 12 11, 2025, https://kubernetes.io/docs/reference/access-authn-authz/authentication/
+81. Kubernetes Bound Service Account Tokens | Google Cloud Blog, truy cập vào tháng 12 11, 2025, https://cloud.google.com/blog/products/containers-kubernetes/kubernetes-bound-service-account-tokens
+82. Managing Service Accounts | Kubernetes, truy cập vào tháng 12 11, 2025, https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/
+83. SPIRE Use Cases - SPIFFE, truy cập vào tháng 12 11, 2025, https://spiffe.io/docs/latest/spire-about/use-cases/
+84. Working with SVIDs - SPIFFE, truy cập vào tháng 12 11, 2025, https://spiffe.io/docs/latest/deploying/svids/
+85. Secure Microservices Communication - SPIFFE, truy cập vào tháng 12 11, 2025, https://spiffe.io/docs/latest/microservices/
+86. Using Envoy with JWT-SVIDs - SPIFFE, truy cập vào tháng 12 11, 2025, https://spiffe.io/docs/latest/microservices/envoy-jwt/readme/
+87. Post-Quantum Identity Standards - OpenID, truy cập vào tháng 12 11, 2025, https://openid.net/post-quantum-identity-standards/
+88. IR 8547, Transition to Post-Quantum Cryptography Standards | CSRC, truy cập vào tháng 12 11, 2025, https://csrc.nist.gov/pubs/ir/8547/ipd
+89. NIST Releases First 3 Finalized Post-Quantum Encryption Standards, truy cập vào tháng 12 11, 2025, https://www.nist.gov/news-events/news/2024/08/nist-releases-first-3-finalized-post-quantum-encryption-standards
+90. Deep dive into a post-quantum signature scheme - The Cloudflare Blog, truy cập vào tháng 12 11, 2025, https://blog.cloudflare.com/post-quantum-signatures/
+91. A Lightweight Variant of Falcon for Efficient Post-Quantum Digital Signature - MDPI, truy cập vào tháng 12 11, 2025, https://www.mdpi.com/2078-2489/16/7/564
+92. NIST Announces First Four Quantum-Resistant Cryptographic Algorithms, truy cập vào tháng 12 11, 2025, https://www.nist.gov/news-events/news/2022/07/nist-announces-first-four-quantum-resistant-cryptographic-algorithms
+93. Fingerprinting Implementations of Cryptographic Primitives and Protocols that Use Post-Quantum Algorithms - arXiv, truy cập vào tháng 12 11, 2025, https://arxiv.org/html/2503.17830v1
+94. A Practical Approach to Quantum-Resistant JWTs - DEV Community, truy cập vào tháng 12 11, 2025, https://dev.to/johnb8005/a-practical-approach-to-quantum-resistant-jwts-9ob
+95. RFC 9794 - Terminology for Post-Quantum Traditional Hybrid Schemes - IETF Datatracker, truy cập vào tháng 12 11, 2025, https://datatracker.ietf.org/doc/rfc9794/
+96. Centralized vs. decentralized identity management for microservices, truy cập vào tháng 12 11, 2025, https://nhimg.org/centralized-vs-decentralized-identity-management-for-microservices
+97. OPA Authorization with Envoy and JWT-SVIDs - SPIFFE, truy cập vào tháng 12 11, 2025, https://spiffe.io/docs/latest/microservices/envoy-jwt-opa/readme/
+98. RFC 9068: The JWT Profile for OAuth2 Access Tokens — A Standard for Seamless Integration - DEV Community, truy cập vào tháng 12 11, 2025, https://dev.to/igventurelli/rfc-9068-the-jwt-profile-for-oauth2-access-tokens-a-standard-for-seamless-integration-14e6
+99. Information on RFC 9068 - » RFC Editor, truy cập vào tháng 12 11, 2025, https://www.rfc-editor.org/info/rfc9068
+100. Microservices Authentication Guide for Security Leaders - Infisign, truy cập vào tháng 12 11, 2025, https://www.infisign.ai/blog/what-is-microservices-authentication
+101. JWTs in Microservices: How to Rotate Keys and Invalidate Sessions Cleanly, truy cập vào tháng 12 11, 2025, https://techblogsbypallavi.medium.com/jwts-in-microservices-how-to-rotate-keys-and-invalidate-sessions-cleanly-db30c1110fd7?source=rss------java-5

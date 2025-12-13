@@ -68,6 +68,19 @@
               </v-form>
             </v-card-text>
 
+            <div class="px-4 pb-2">
+              <v-btn
+                block
+                variant="outlined"
+                color="error"
+                prepend-icon="mdi-google"
+                @click="authStore.loginWithGoogle()"
+                class="mb-2 hover-lift"
+              >
+                Sign in with Google
+              </v-btn>
+            </div>
+
             <v-divider class="my-3"></v-divider>
 
             <v-card-actions class="d-flex flex-column align-center px-4 pb-4">

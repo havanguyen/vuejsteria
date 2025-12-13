@@ -1,0 +1,278 @@
+﻿Dựa trên phân tích dự án vuejsteria hiện có và tài liệu API mới (Cart, Order, Payment), đây là một kế hoạch phát triển chi tiết để tích hợp luồng thương mại điện tử hoàn chỉnh vào ứng dụng của bạn.
+Kế hoạch này được chia thành các giai đoạn (phase) logic, bám sát vào các "user story" (hành trình người dùng) của một trang thương mại điện tử.
+________________
+
+
+Giai đoạn 1: Xây dựng Chức năng Giỏ hàng (Cart)
+
+
+Mục tiêu: Cho phép người dùng thêm, xem, và quản lý các sản phẩm trong giỏ hàng.
+
+
+1.1. Tạo API Service cho Cart
+
+
+* File: src/api/cartApi.js (Tạo file mới)
+* Nội dung: Định nghĩa các hàm gọi API cho giỏ hàng, sử dụng axiosInstance chung (từ config/axiosConfig) để chúng tự động nhận token và xử lý loading.
+   * getMyCartApi: GET /my-cart 1
+
+   * addToCartApi: POST /my-cart 2
+
+   * removeProductFromCartApi: DELETE /my-cart/{productId}
+   * clearCartApi: DELETE /my-cart 3
+
+
+
+1.2. Tạo Pinia Store cho Giỏ hàng (useCartStore)
+
+
+   * File: src/stores/useCartStore.js (Tạo file mới)
+   * Mục đích: Quản lý state của giỏ hàng trên toàn bộ ứng dụng.
+   * State:
+   * items: ref([]) - Danh sách các sản phẩm trong giỏ hàng (sẽ chứa response từ API)4.
+
+   * isLoading: ref(false)
+      * Getters (computed):
+      * itemCount: Đếm tổng số lượng sản phẩm.
+      * totalPrice: Tính tổng giá trị giỏ hàng (dựa trên salePrice nếu có, nếu không thì basePrice).
+      * Actions:
+      * async fetchCart(): Gọi getMyCartApi() 5 và cập nhật items.
+
+      * async addProduct(productId, quantity): Gọi addToCartApi({ productId, quantity })6. Sau đó, gọi lại fetchCart() để đồng bộ hóa.
+
+      * async removeProduct(productId): Gọi removeProductFromCartApi(productId). Sau đó, gọi lại fetchCart().
+      * async clearCart(): Gọi clearCartApi()7. Sau đó, gọi lại fetchCart().
+
+      * clearLocalCart(): Xóa state (items.value = []) khi người dùng logout.
+
+
+1.3. Tích hợp Cart vào Luồng Xác thực
+
+
+         * File: src/stores/useAuthStore.js
+         * Mục đích: Đồng bộ giỏ hàng khi người dùng đăng nhập/đăng xuất.
+         * Hành động:
+         1. Import useCartStore.
+         2. Trong hàm login(): Sau khi đăng nhập thành công, gọi useCartStore().fetchCart().
+         3. Trong hàm logout(): Gọi useCartStore().clearLocalCart().
+         4. Trong hàm hydrate(): Nếu token.value tồn tại, gọi useCartStore().fetchCart().
+
+
+1.4. Nâng cấp Giao diện (UI)
+
+
+         1. File: src/components/product/ProductCard.vue & src/views/ProductDetailPage.vue
+         * Import useCartStore.
+         * Thay đổi hàm addToCart() (hiện đang console.log):
+         * Lấy cartStore = useCartStore().
+         * Gọi await cartStore.addProduct(product.id, 1).
+         * Hiển thị thông báo thành công (useNotificationStore).
+         2. File: src/components/layout/Header.vue
+         * Import useCartStore và dùng storeToRefs để lấy itemCount.
+         * Thêm một v-btn (icon giỏ hàng) bên cạnh nút "Profile".
+         * Hiển thị itemCount bằng v-badge trên icon.
+         * Liên kết nút này đến route /cart (sẽ tạo ở bước sau).
+         3. File: src/router/index.js
+         * Thêm một route mới cho trang giỏ hàng:
+JavaScript
+{
+ path: 'cart',
+ name: 'Cart',
+ component: () => import('@/views/CartPage.vue'),
+ meta: { requiresAuth: true, title: 'My Cart' },
+}
+
+            4. File: src/views/CartPage.vue (Tạo file mới)
+            * Tạo một component trang mới.
+            * Sử dụng useCartStore để lấy items, totalPrice, isLoading.
+            * Hiển thị danh sách các sản phẩm (items)8:
+
+               * Sử dụng v-list hoặc v-card để lặp qua các item.
+               * Hiển thị hình ảnh, tên, giá, số lượng.
+               * Thêm v-text-field (dạng number) để cho phép cập nhật số lượng (gọi cartStore.addProduct(item.productResponse.id, newQuantity)).
+               * Thêm nút "Xóa" (gọi cartStore.removeProduct(item.productResponse.id)).
+               * Hiển thị totalPrice.
+               * Thêm nút "Xóa sạch giỏ hàng" (gọi cartStore.clearCart()).
+               * Thêm nút "Tiến hành Thanh toán" (liên kết đến route /checkout).
+________________
+
+
+Giai đoạn 2: Xây dựng Trang Thanh toán (Checkout)
+
+
+Mục tiêu: Thu thập thông tin giao hàng và tạo đơn hàng (bước 1 của thanh toán).
+
+
+2.1. Tạo API Service cho Order
+
+
+               * File: src/api/orderApi.js (Tạo file mới)
+               * Nội dung:
+               * checkoutApi(checkoutData): POST /orders/checkout999.
+
+               * getPaymentUrlApi(orderId): GET /orders/{orderId}/payment-url10.
+
+
+
+2.2. Tạo Trang Checkout
+
+
+                  1. File: src/router/index.js
+                  * Thêm route mới (yêu cầu xác thực):
+JavaScript
+{
+ path: 'checkout',
+ name: 'Checkout',
+ component: () => import('@/views/CheckoutPage.vue'),
+ meta: { requiresAuth: true, title: 'Checkout' },
+}
+
+                     2. File: src/views/CheckoutPage.vue (Tạo file mới)
+                     * Component này sẽ có 2 cột (trên desktop):
+                     * Cột 1 (Tóm tắt đơn hàng): Sử dụng useCartStore để hiển thị lại tóm tắt items và totalPrice (chỉ đọc, không cho sửa).
+                     * Cột 2 (Form Giao hàng):
+                     * Sử dụng Vee-Validate + Zod (tạo schema shippingSchema) cho các trường: street, city, state, postalCode, country, phone và note11.
+
+                     * Sử dụng các component v-text-field của Vuetify.
+                        * Logic Submit Form:
+                        * Tạo hàm onSubmit (được bọc bởi handleSubmit của Vee-Validate).
+                        * Khi submit, gọi checkoutApi() với dữ liệu từ form12.
+
+                        * Xử lý Response:
+                           * Nếu thành công:
+                           1. Nhận orderId từ response13.
+
+                           2. await useCartStore().fetchCart() (để làm mới giỏ hàng, lúc này giỏ hàng trên server đã trống).
+                           3. Chuyển hướng người dùng đến trang "đợi thanh toán", truyền orderId qua params: router.push({ name: 'OrderPending', params: { id: orderId } }).
+                              * Nếu thất bại: Hiển thị lỗi (ví dụ: tồn kho không đủ).
+________________
+
+
+Giai đoạn 3: Xử lý Thanh toán (Polling & Redirect)
+
+
+Mục tiêu: Lấy link VNPay (bất đồng bộ) và xử lý khi người dùng được trả về từ cổng thanh toán.
+
+
+3.1. Tạo Trang "Đợi Thanh toán" (Polling)
+
+
+                              1. File: src/router/index.js
+                              * Thêm route mới (yêu cầu xác thực):
+JavaScript
+{
+ path: 'order-pending/:id',
+ name: 'OrderPending',
+ component: () => import('@/views/OrderPendingPage.vue'),
+ meta: { requiresAuth: true, title: 'Pending Payment' },
+ props: true
+}
+
+                                 2. File: src/views/OrderPendingPage.vue (Tạo file mới)
+                                 * Mục đích: Gọi API getPaymentUrlApi lặp đi lặp lại cho đến khi nhận được URL.
+                                 * Props: id (là orderId từ route).
+                                 * UI: Hiển thị một v-progress-circular và thông báo "Đang xử lý thanh toán, vui lòng không tắt trình duyệt..."14.
+
+                                 * Logic (trong onMounted):
+Đoạn mã
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue';
+import { getPaymentUrlApi } from '@/api/orderApi';
+
+const props = defineProps({ id: String });
+const error = ref(null);
+let pollInterval = null;
+
+const pollForPaymentUrl = async () => {
+ try {
+   const response = await getPaymentUrlApi(props.id);
+   // KHI URL ĐÃ SẴN SÀNG [cite: 28]
+   if (response.result) {
+     clearInterval(pollInterval);
+     // Chuyển hướng đến VNPay
+     window.location.href = response.result;
+   }
+   // KHI URL CHƯA SẴN SÀNG [cite: 27]
+   // (Không làm gì, đợi lần poll tiếp theo)
+
+ } catch (err) {
+   error.value = "Không thể tạo thanh toán. Vui lòng thử lại.";
+   clearInterval(pollInterval);
+ }
+};
+
+onMounted(() => {
+ pollInterval = setInterval(pollForPaymentUrl, 2000); // Poll mỗi 2 giây 
+ // Cũng nên thêm một timeout (ví dụ: 30 giây) để hủy polling nếu quá lâu
+});
+
+onUnmounted(() => {
+ clearInterval(pollInterval);
+});
+</script>
+
+
+
+3.2. Tạo Trang "Kết quả Thanh toán" (Callback)
+
+
+                                    1. File: src/router/index.js
+                                    * Thêm route mới (công khai, không cần auth):
+JavaScript
+{
+ path: 'payment-result',
+ name: 'PaymentResult',
+ component: () => import('@/views/PaymentResultPage.vue'),
+ meta: { title: 'Payment Result' },
+}
+
+                                       2. File: src/views/PaymentResultPage.vue (Tạo file mới)
+                                       * Mục đích: Đón người dùng khi VNPay/Backend chuyển hướng họ trở lại15.
+
+                                       * Logic (trong onMounted):
+                                          * Đọc route.query.status và route.query.orderId (hoặc bất kỳ params nào backend trả về).
+                                          * Hiển thị thông báo "Thanh toán thành công" nếu status === 'success'.
+                                          * Hiển thị thông báo "Thanh toán thất bại" nếu status !== 'success'.
+                                          * Cung cấp nút "Quay về Trang chủ" hoặc "Xem Lịch sử Đơn hàng".
+________________
+
+
+Giai đoạn 4: Hoàn thiện (Lịch sử Đơn hàng)
+
+
+Mục tiêu: Cho phép người dùng xem lại các đơn hàng đã đặt.
+
+
+4.1. Xác định API còn thiếu
+
+
+                                          * Tài liệu hiện tại chưa có các endpoint sau:
+                                          1. GET /orders/my-orders (Để lấy danh sách đơn hàng của người dùng).
+                                          2. GET /orders/{orderId} (Để xem chi tiết một đơn hàng).
+                                          * Hành động: Yêu cầu backend cung cấp các API này.
+
+
+4.2. Lên kế hoạch (Giả định đã có API)
+
+
+                                          1. File: src/api/orderApi.js
+                                          * Thêm getMyOrdersApi() và getOrderByIdApi().
+                                          2. File: src/router/index.js
+                                          * Thêm route lồng nhau trong trang profile:
+JavaScript
+// bên trong children của '/profile'
+{
+ path: 'orders',
+ name: 'OrderHistory',
+ component: () => import('@/views/profile/OrderHistoryPage.vue'),
+},
+{
+ path: 'orders/:id',
+ name: 'OrderDetail',
+ component: () => import('@/views/profile/OrderDetailPage.vue'),
+ props: true
+}
+
+                                             3. File: src/views/profile/ProfilePage.vue
+                                             * Thêm một v-list-item hoặc v-btn liên kết đến trang OrderHistory.
+                                             4. Tạo 2 trang mới: OrderHistoryPage.vue (hiển thị danh sách) và OrderDetailPage.vue (hiển thị chi tiết).

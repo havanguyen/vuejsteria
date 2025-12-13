@@ -1,0 +1,322 @@
+﻿Chào bạn,
+Đây là một tài liệu Đặc tả Yêu cầu Phần mềm (Software Requirement Specification - SRS) cực kỳ chi tiết, được xây dựng dựa trên kiến trúc 13 microservices chúng ta đã thảo luận. Tài liệu này được tối ưu để làm kim chỉ nam (blueprint) cho đội ngũ phát triển, đảm bảo tính đầy đủ, hiện đại và sẵn sàng cho sản xuất (production-ready).
+________________
+
+
+TÀI LIỆU ĐẶC TẢ YÊU CẦU PHẦN MỀM (SRS)
+
+
+Dự án: Bookteria E-commerce Platform
+Phiên bản: 2.0 (Tối ưu hóa)
+Ngày: 30-10-2025
+________________
+
+
+1. Giới thiệu
+
+
+
+
+1.1. Mục đích
+
+
+Tài liệu này định nghĩa và đặc tả tất cả các yêu cầu chức năng và phi chức năng cho hệ thống thương mại điện tử Bookteria. Mục tiêu là xây dựng một nền tảng microservices (đa dịch vụ) hiện đại, có khả năng mở rộng, cho phép Admin (Người bán) quản lý toàn diện việc bán sách và User (Người mua) có trải nghiệm mua sắm, tương tác phong phú.
+
+
+1.2. Phạm vi
+
+
+Hệ thống bao gồm 13 microservices (và 2 service nền tảng) chịu trách nhiệm cho các nghiệp vụ:
+* Nền tảng (Platform): config-server, discovery-server.
+* Cốt lõi (Core): api-gateway, identity-service, profile-service, notification-service.
+* Nghiệp vụ E-commerce (Business): file-service, product-service, inventory-service, cart-service, order-service, payment-service.
+* Tính năng Mở rộng (Feature): review-service, search-service, chat-service.
+Ngoài phạm vi: Hệ thống không bao gồm:
+* Hệ thống kế toán nội bộ (Internal Accounting).
+* Hệ thống quản lý nhân sự (HRM).
+* Hệ thống quản lý chuỗi cung ứng (SCM) và làm việc với nhà cung cấp.
+
+
+1.3. Các Tác nhân & Vai trò (Actors & Roles)
+
+
+1. Guest (Khách vãng lai):
+   * Người dùng chưa xác thực.
+   * Quyền hạn: Duyệt sản phẩm, tìm kiếm, xem đánh giá, đăng ký tài khoản.
+2. User (Người mua):
+   * Người dùng đã xác thực (Role: USER).
+   * Quyền hạn: Bao gồm tất cả quyền của Guest, cộng thêm: quản lý hồ sơ, quản lý giỏ hàng, đặt hàng, xem lịch sử đơn hàng, viết đánh giá, chat.
+3. Admin (Người bán / Quản trị viên):
+   * Người dùng đặc biệt (Role: ADMIN).
+   * Quyền hạn: Quản lý sản phẩm, quản lý kho, quản lý đơn hàng (của tất cả user), quản lý người dùng, quản lý đánh giá, cấu hình thanh toán.
+4. System (Hệ thống):
+   * Đại diện cho các tiến trình tự động (vd: Kafka Consumer) hoặc các dịch vụ bên thứ ba (Cloudinary, VNPay, Brevo).
+
+
+1.4. Tổng quan Kiến trúc Hệ thống
+
+
+Hệ thống được thiết kế theo kiến trúc Microservice, giao tiếp qua 4 phương thức chính: REST API đồng bộ (Synchronous, qua FeignClient), Sự kiện (Asynchronous, qua Kafka), Hàng đợi Lệnh (Asynchronous, qua RabbitMQ) và Real-time (qua WebSocket).
+
+
+1.5. Định nghĩa & Viết tắt
+
+
+* JWT: JSON Web Token, dùng để xác thực.
+* Kafka: Nền tảng streaming sự kiện (Event Streaming), dùng cho các sự kiện dạng "Fact" (sự thật đã xảy ra).
+* RabbitMQ: Message Broker, dùng cho các "Command" (lệnh) và "Reply" (phản hồi) trong quy trình nghiệp vụ (Saga).
+* Saga: Một quy trình nghiệp vụ (vd: đặt hàng) kéo dài, bao gồm nhiều bước giao tiếp giữa các service.
+* ACID: Tính toàn vẹn dữ liệu (Atomicity, Consistency, Isolation, Durability).
+* RBAC: Role-Based Access Control (Phân quyền dựa trên Vai trò).
+* P95: 95th Percentile - 95% số request phải có thời gian phản hồi thấp hơn con số này.
+________________
+
+
+2. Yêu cầu Chức năng (Functional Requirements)
+
+
+Đây là các yêu cầu chi tiết cho từng service.
+
+
+2.1. api-gateway (Service Cổng API)
+
+
+* FR-GW.1 (Routing): Phải định tuyến tất cả các request đến từ client tới các service nội bộ tương ứng dựa trên đường dẫn (path). Vd: /api/v1/identity/** -> lb://identity-service. [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/api-gateway/src/main/resources/application.yaml]
+* FR-GW.2 (Authentication): Phải chặn và xác thực JWT của tất cả các request (trừ các endpoint trong publicEndpoint) bằng cách gọi identity-service/auth/introspect. [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/api-gateway/src/main/java/com/devteria/gateway/config/AuthenticationFilter.java]
+* FR-GW.3 (Rate Limiting): Phải áp dụng cơ chế giới hạn tần suất request (vd: 100 request/giây/IP) để chống DoS.
+* FR-GW.4 (WebSocket Proxy): Phải hỗ trợ nâng cấp (upgrade) và proxy kết nối WebSocket cho chat-service (vd: /ws-chat).
+
+
+2.2. identity-service (Service Định danh)
+
+
+* FR-ID.1 (Registration): User có thể đăng ký tài khoản (username, password, email...). [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/identity-service/src/main/java/com/devteria/identity/controller/UserController.java]
+* FR-ID.2 (Login): User có thể đăng nhập và nhận về JWT (Access Token). [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/identity-service/src/main/java/com/devteria/identity/controller/AuthenticationController.java]
+* FR-ID.3 (Logout): User có thể đăng xuất (làm vô hiệu hóa token hiện tại). [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/identity-service/src/main/java/com/devteria/identity/controller/AuthenticationController.java]
+* FR-ID.4 (Introspect): Cung cấp API nội bộ /auth/introspect cho api-gateway và các service khác xác thực token. [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/identity-service/src/main/java/com/devteria/identity/controller/AuthenticationController.java]
+* FR-ID.5 (RBAC): Admin có thể CRUD (Tạo, Đọc, Sửa, Xóa) các Role (vd: USER, ADMIN) và Permission (vd: product:create, order:manage).
+* FR-ID.6 (JWT Claims): Khi tạo JWT, hệ thống phải nhúng userId, username, roles và permissions (dưới dạng claim scope) vào payload. [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/identity-service/src/main/java/com/devteria/identity/service/AuthenticationService.java]
+* FR-ID.7 (Eventing): Khi User đăng ký thành công, service phải bắn sự kiện UserCreationEvent lên Kafka topic user-registration-topic. [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/identity-service/src/main/java/com/devteria/identity/service/UserEventProducerService.java]
+
+
+2.3. profile-service (Service Hồ sơ)
+
+
+* FR-PF.1 (My Info): User có thể lấy (GET /my-info) và cập nhật (PUT /my-info) hồ sơ cá nhân của mình (tên, ngày sinh, địa chỉ). [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/profile-service/src/main/java/com/devteria/notification/controller/UserProfileController.java]
+* FR-PF.2 (Avatar Update): User có thể cập nhật ảnh đại diện (avatar). API này sẽ gọi file-service để upload ảnh và chỉ lưu lại URL.
+* FR-PF.3 (Internal Sync): Cung cấp API nội bộ (vd: POST /internal/users) để identity-service gọi đến và tạo hồ sơ khi User mới đăng ký. [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/profile-service/src/main/java/com/devteria/notification/controller/InternalUserProfileController.java]
+
+
+2.4. file-service (Service Tập tin) - MỚI
+
+
+* FR-FL.1 (Upload): Cung cấp API POST /upload/image (Bảo vệ: @PreAuthorize("isAuthenticated()")).
+* FR-FL.2 (Validation): API phải xác thực loại file (MIME type: image/jpeg, image/png) và kích thước (vd: <= 10MB).
+* FR-FL.3 (Storage): Service phải tích hợp với Cloud Storage (vd: Cloudinary) để lưu trữ file.
+* FR-FL.4 (Response): API phải trả về một JSON chứa URL công khai (public URL) của file đã upload. Vd: {"url": "https://res.cloudinary.com/..."}.
+* FR-FL.5 (Optimization): (Nâng cao) Service nên tự động nén ảnh (vd: giảm 70% chất lượng) và tạo thumbnail trước khi upload.
+
+
+2.5. product-service (Service Sản phẩm) - MỚI
+
+
+* FR-PD.1 (Book CRUD): Admin có thể CRUD (Tạo, Đọc, Sửa, Xóa) sách. Các trường: title, description, isbn, publisher, publicationDate, pageCount, imageUrl (kiểu String, lấy từ file-service).
+* FR-PD.2 (Category CRUD): Admin có thể CRUD Thể loại (vd: "Tiểu thuyết", "Kinh tế").
+* FR-PD.3 (Author CRUD): Admin có thể CRUD Tác giả.
+* FR-PD.4 (Relations): Admin có thể gán 1 Sách cho nhiều Thể loại (Many-to-Many), và 1 Sách cho 1 Tác giả (Many-to-One).
+* FR-PD.5 (Pricing): Admin có thể quản lý giá: basePrice (giá gốc), salePrice (giá khuyến mãi), saleStartDate, saleEndDate.
+* FR-PD.6 (Public Read List): Guest/User có thể GET /products với các bộ lọc (filter) ?category=..., ?author=..., sắp xếp (sort) ?sort=price,asc và phân trang (pagination) ?page=0&size=20.
+* FR-PD.7 (Public Read Detail): Guest/User có thể GET /products/{id} hoặc GET /products/slug/{slug}.
+* FR-PD.8 (Eventing): Khi sách được Tạo/Sửa/Xóa, service phải bắn sự kiện ProductEvent (chứa toàn bộ DTO của sách) lên Kafka topic product.events.
+
+
+2.6. inventory-service (Service Kho hàng) - MỚI
+
+
+* FR-IV.1 (Stock In): Admin có thể POST /inventory/{bookId}/stock (vd: {"quantity": 100}) để nhập kho (dùng Redis INCRBY).
+* FR-IV.2 (Get Stock): Cung cấp API nội bộ GET /inventory/{bookId} cho cart-service kiểm tra nhanh.
+* FR-IV.3 (Reserve Stock - Saga): Cung cấp cơ chế (qua RabbitMQ Consumer) để "tạm giữ" kho (dùng Redis DECRBY). Phải đảm bảo logic này là nguyên tử (atomic) và không cho phép số lượng < 0 (khuyến nghị dùng LUA script trong Redis).
+* FR-IV.4 (Rollback Stock - Saga): Cung cấp cơ chế (qua RabbitMQ Consumer) để hoàn trả kho (dùng Redis INCRBY) khi đơn hàng bị hủy.
+
+
+2.7. cart-service (Service Giỏ hàng) - MỚI
+
+
+* FR-CT.1 (Get Cart): User có thể GET /my-cart.
+* FR-CT.2 (Add Item): User có thể POST /my-cart/items (body: {"bookId": "...", "quantity": 1}).
+   * Logic: Service phải gọi FeignClient đến product-service (lấy giá) VÀ inventory-service (kiểm tra quantity có hợp lệ không) trước khi thêm vào Redis.
+* FR-CT.3 (Update Item): User có thể PUT /my-cart/items/{bookId} (body: {"quantity": 2}).
+* FR-CT.4 (Remove Item): User có thể DELETE /my-cart/items/{bookId}.
+* FR-CT.5 (Internal Clear): Cung cấp API nội bộ DELETE /internal/carts/{userId} cho order-service gọi sau khi checkout thành công.
+* FR-CT.6 (TTL): Giỏ hàng (trên Redis) phải có thời gian hết hạn (TTL), ví dụ: 7 ngày.
+
+
+2.8. order-service (Service Đơn hàng) - MỚI
+
+
+* FR-OR.1 (Checkout): User có thể POST /checkout. Service sẽ đọc giỏ hàng (gọi cart-service), tạo 1 Order (status PENDING) và bắt đầu Saga đặt hàng.
+* FR-OR.2 (My Orders): User có thể GET /my-orders (lấy lịch sử đơn hàng của mình, phân trang).
+* FR-OR.3 (Order Detail): User có thể GET /my-orders/{orderId} (phải check order.userId == jwt.userId).
+* FR-OR.4 (Admin List Orders): Admin có thể GET /orders (xem tất cả, lọc theo status, phân trang).
+* FR-OR.5 (Admin Update Status): Admin có thể PUT /orders/{orderId}/status (body: {"status": "SHIPPED"}). Các trạng thái hợp lệ: PENDING, PAID, FAILED_INVENTORY, FAILED_PAYMENT, CONFIRMED, SHIPPED, COMPLETED, CANCELLED.
+* FR-OR.6 (Saga Orchestration - RabbitMQ):
+   * Sau khi tạo Order (status PENDING), gửi ReserveInventoryCommand lên RabbitMQ (Queue: inventory.reserve.queue).
+   * Lắng nghe order.reply.queue. Nếu nhận InventoryReserved, gửi InitiatePaymentCommand lên RabbitMQ (Queue: payment.init.queue).
+   * Nếu nhận InventoryOutOfStock, cập nhật Order (status FAILED_INVENTORY).
+* FR-OR.7 (Saga Orchestration - Kafka):
+   * Lắng nghe Kafka topic payment.events.
+   * Nếu nhận PaymentSucceeded, cập nhật Order (status PAID) và bắn OrderPaidEvent (Kafka).
+   * Nếu nhận PaymentFailed, cập nhật Order (status FAILED_PAYMENT) và gửi RollbackInventoryCommand (RabbitMQ).
+* FR-OR.8 (Internal Check): Cung cấp API nội bộ GET /internal/orders/check-purchased?bookId=... (cho review-service gọi, check userId từ JWT).
+
+
+2.9. payment-service (Service Thanh toán) - MỚI
+
+
+* FR-PY.1 (Admin Config): Admin có thể CRUD cấu hình cổng thanh toán (VNPay, Stripe...).
+* FR-PY.2 (Saga Step - Init): Lắng nghe InitiatePaymentCommand (RabbitMQ).
+* FR-PY.3 (Saga Step - Reply): Gọi API của VNPay/Stripe, tạo giao dịch, và gửi link thanh toán (hoặc lỗi) về order.reply.queue (RabbitMQ).
+* FR-PY.4 (Callback/Webhook): Cung cấp các API công khai GET /callback/vnpay và POST /webhook/stripe để cổng thanh toán gọi về.
+* FR-PY.5 (Eventing): Khi Webhook được xác thực, lưu PaymentTransaction vào DB (PostgreSQL) và bắn sự kiện PaymentSucceededEvent hoặc PaymentFailedEvent lên Kafka topic payment.events.
+
+
+2.10. review-service (Service Đánh giá) - MỚI
+
+
+* FR-RV.1 (Create Review): User có thể POST /reviews (body: {"bookId": "...", "rating": 5, "comment": "...", "imageUrls": ["url1", "url2"]}).
+* FR-RV.2 (Purchase Validation): API POST /reviews phải gọi FeignClient đến order-service (check-purchased) để xác thực User đã mua sách này và đơn hàng đã COMPLETED.
+* FR-RV.3 (Get Reviews): Public có thể GET /reviews?bookId=... (phân trang).
+* FR-RV.4 (Rating Summary): Public có thể GET /products/{bookId}/rating-summary (trả về { "averageRating": 4.5, "totalReviews": 150, "fiveStar": 100, "fourStar": 20, ... }).
+* FR-RV.5 (Delete Review): Admin có thể DELETE /reviews/{reviewId}.
+
+
+2.11. search-service (Service Tìm kiếm) - MỚI
+
+
+* FR-SC.1 (Event Consumer): Lắng nghe Kafka topic product.events.
+* FR-SC.2 (Indexing): Khi nhận sự kiện, tự động Cập nhật/Thêm/Xóa document sách trong Elasticsearch.
+* FR-SC.3 (Search API): Public có thể GET /search?q=... (hỗ trợ full-text, fuzzy ~1).
+* FR-SC.4 (Autocomplete API): Public có thể GET /search/autocomplete?prefix=... (gợi ý tìm kiếm).
+
+
+2.12. notification-service (Service Thông báo)
+
+
+* FR-NT.1 (Welcome): Lắng nghe user-registration-topic (Kafka) -> Gửi email chào mừng. [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/notification-service/src/main/java/com/devteria/notification/service/UserEventConsumerService.java]
+* FR-NT.2 (Order Paid): Lắng nghe order.paid (Kafka) -> Gửi email xác nhận đơn hàng (Dùng Thymeleaf template order-confirmation.html).
+* FR-NT.3 (Order Shipped): Lắng nghe order.shipped (Kafka) -> Gửi email thông báo giao hàng (Dùng Thymeleaf template order-shipped.html).
+* FR-NT.4 (New Message): (Nâng cao) Lắng nghe chat.unread (Kafka/RabbitMQ) -> Gửi email "Bạn có tin nhắn mới".
+
+
+2.13. chat-service (Service Chat) - MỚI
+
+
+* FR-CH.1 (Connection): Cung cấp endpoint GET /ws-chat cho kết nối WebSocket (STOMP).
+* FR-CH.2 (Send Message): User SEND (gửi) tin nhắn đến STOMP destination (vd: /app/chat.private.{recipientUserId}).
+* FR-CH.3 (Receive Message): User SUBSCRIBE (đăng ký) destination cá nhân (/topic/messages.{myUserId}) để nhận tin nhắn.
+* FR-CH.4 (Backplane): Service phải sử dụng RabbitMQ Topic Exchange làm "backplane" để điều phối tin nhắn giữa các instance của chat-service.
+* FR-CH.5 (Persistence): Mọi tin nhắn phải được lưu vào MongoDB (Collection: messages).
+* FR-CH.6 (History): Cung cấp REST API GET /chat/history/{conversationPartnerId} để tải lịch sử chat cũ (phân trang).
+
+
+2.14. config-server (Service Cấu hình) - MỚI (NỀN TẢNG)
+
+
+* FR-CFG.1 (Provide Config): Phải cung cấp cấu hình (từ Git repo) cho tất cả các service khác khi chúng khởi động.
+
+
+2.15. discovery-server (Service Khám phá) - MỚI (NỀN TẢNG)
+
+
+* FR-DSC.1 (Registry): Phải hoạt động như một Eureka Server, duy trì registry (danh bạ) của tất cả các instance service đang hoạt động.
+________________
+
+
+3. Yêu cầu Phi chức năng (Non-Functional Requirements - NFRs)
+
+
+Đây là các yêu cầu bắt buộc để đảm bảo hệ thống hiện đại, bảo mật và ổn định.
+
+
+3.1. NFR-SEC: Bảo mật (Security)
+
+
+* NFR-SEC.1 (Authentication): Mọi API (trừ publicEndpoint) phải được xác thực bằng JWT (do api-gateway kiểm tra).
+* NFR-SEC.2 (Authorization): Mọi API nghiệp vụ nhạy cảm (CRUD) phải được bảo vệ bằng @PreAuthorize (vd: @PreAuthorize("hasRole('ADMIN')") hoặc @PreAuthorize("hasAuthority('product:create')")).
+* NFR-SEC.3 (Data Ownership): Mọi API truy cập tài nguyên cá nhân (vd: GET /my-orders/{id}, GET /my-cart) phải kiểm tra resource.userId == jwt.userId.
+* NFR-SEC.4 (Internal API): Giao tiếp nội bộ (vd: identity -> profile) phải dùng token riêng (Internal Token) thay vì JWT của user. [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/identity-service/src/main/java/com/devteria/identity/configuration/InternalRequestInterceptor.java]
+* NFR-SEC.5 (File Upload): file-service phải validate nghiêm ngặt MIME type (chỉ image/png, image/jpeg) và Kích thước (<= 10MB) để chống lại việc upload shell độc hại.
+* NFR-SEC.6 (Password): Mật khẩu User phải được hash bằng BCrypt. [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/identity-service/src/main/java/com/devteria/identity/service/AuthenticationService.java]
+
+
+3.2. NFR-PERF: Hiệu năng (Performance)
+
+
+* NFR-PERF.1 (API Response): Thời gian phản hồi P95 cho các API GET (đọc sản phẩm, đọc list) phải < 200ms.
+* NFR-PERF.2 (Search Response): P95 cho API GET /search (Elasticsearch) phải < 300ms.
+* NFR-PERF.3 (Cart Response): P95 cho API POST /my-cart/items (gọi 2 service khác) phải < 400ms.
+* NFR-PERF.4 (Checkout Response): P95 cho API POST /checkout (bắt đầu Saga) phải trả về cho client < 500ms.
+* NFR-PERF.5 (Real-time): Độ trễ tin nhắn Chat (WebSocket) phải < 150ms.
+
+
+3.3. NFR-REL: Độ tin cậy & Phục hồi (Reliability & Resilience)
+
+
+* NFR-REL.1 (Circuit Breaker): Mọi lệnh gọi FeignClient (giao tiếp đồng bộ) phải được bọc trong Resilience4j Circuit Breaker để ngăn ngừa lỗi dây chuyền (cascading failure).
+* NFR-REL.2 (Retry): Các lệnh gọi FeignClient quan trọng (vd: gọi payment-service) phải có cơ chế Retry (tối đa 3 lần).
+* NFR-REL.3 (Saga Compensation): Mọi Saga (vd: Đặt hàng) phải có logic Compensation (Rollback). Vd: Nếu PaymentFailed, hệ thống phải tự động gửi RollbackInventoryCommand để hoàn trả kho.
+* NFR-REL.4 (Idempotency): Mọi Kafka/RabbitMQ Consumer phải được thiết kế để idempotent (xử lý cùng 1 message N lần vẫn cho 1 kết quả duy nhất), vd: bằng cách kiểm tra orderId trong DB trước khi xử lý.
+
+
+3.4. NFR-SCA: Khả năng Mở rộng (Scalability)
+
+
+* NFR-SCA.1 (Stateless): Mọi service nghiệp vụ (trừ DB) phải là stateless.
+* NFR-SCA.2 (Service Discovery): Mọi service phải đăng ký với Eureka (discovery-server). Cấm hardcode IP/port. [Tham khảo: lb://identity-service].
+* NFR-SCA.3 (Centralized Config): Mọi service phải kéo cấu hình từ Spring Cloud Config Server.
+* NFR-SCA.4 (WebSocket Scaling): chat-service phải dùng RabbitMQ Backplane để có thể scale ngang (chạy nhiều instance).
+
+
+3.5. NFR-OBS: Khả năng Quan sát (Observability)
+
+
+* NFR-OBS.1 (Distributed Tracing): Mọi request đi qua api-gateway phải được gán một Trace-ID (dùng OpenTelemetry + Zipkin/Jaeger) và Trace-ID này phải được truyền đi qua tất cả các service (trong log, Feign headers, Kafka/RabbitMQ headers).
+* NFR-OBS.2 (Metrics): Mọi service phải expose endpoint /actuator/prometheus. Hệ thống Prometheus & Grafana phải được cài đặt để giám sát sức khỏe (CPU, RAM, API latency, Kafka consumer lag).
+* NFR-OBS.3 (Centralized Logging): Mọi service phải log ra STDOUT (định dạng JSON). Hệ thống Loki (hoặc ELK Stack) phải được cài đặt để gom log tập trung.
+
+
+3.6. NFR-TEST: Khả năng Bảo trì & Kiểm thử (Maintainability & Testability)
+
+
+* NFR-TEST.1 (Integration Testing): Mọi service có tương tác với DB hoặc Message Broker phải có bài kiểm thử tích hợp (Integration Test) sử dụng Testcontainers (khởi động Docker PostgreSQL, Redis, Kafka... thật). Không được dùng H2/in-memory cho integration test [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/identity-service/src/test/resources/test.properties].
+* NFR-TEST.2 (Contract Testing): Sử dụng Spring Cloud Contract cho các giao tiếp API cốt lõi (vd: order-service [consumer] và payment-service [producer]) để đảm bảo API không bị "vỡ" khi nâng cấp.
+* NFR-TEST.3 (CI/CD): Phải có pipeline CI/CD (vd: GitLab CI, Jenkins) tự động chạy Unit Test, Integration Test (với Testcontainers), và build Docker image.
+________________
+
+
+4. Giao diện Bên ngoài (External Interfaces)
+
+
+
+
+4.1. Giao diện Người dùng (User Interfaces)
+
+
+* Hệ thống sẽ cung cấp API cho một Frontend (vd: React, Vue) và Ứng dụng Di động (Mobile App) (Nằm ngoài phạm vi SRS này).
+
+
+4.2. Giao diện API Phần mềm (Software APIs)
+
+
+* Cloudinary API: (Từ file-service) để upload/quản lý file.
+* VNPay/Stripe/MoMo API: (Từ payment-service) để khởi tạo và xác thực thanh toán.
+* Brevo API: (Từ notification-service) để gửi email giao dịch. [Tham khảo: havanguyen/bookteria/bookteria-b6eff591278bfcb0d443c4d96a0c0444e282a91a/notification-service/src/main/java/com/devteria/notification/repository/httpclient/SentEmailClient.java]
+
+
+4.3. Giao diện Giao tiếp (Communication Interfaces)
+
+
+* REST API (Sync): Giao thức chính cho giao tiếp Client -> Gateway và giữa các service (qua Spring Cloud OpenFeign).
+* Kafka (Async Event Stream): Dùng cho các sự kiện (Facts). Topics: product.events, payment.events, order.paid, order.shipped, user-registration-topic.
+* RabbitMQ (Async Command/Saga): Dùng cho các lệnh (Commands) và phản hồi (Replies) trong quy trình nghiệp vụ. Queues: inventory.reserve.queue, payment.init.queue, order.reply.queue.
+* WebSocket (Real-time): Dùng cho chat-service qua giao thức STOMP.
