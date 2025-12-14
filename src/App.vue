@@ -22,15 +22,21 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, onMounted } from 'vue';
 import GlobalSnackbar from '@/components/layout/GlobalSnackbar.vue';
 import GlobalLoadingIndicator from '@/components/layout/GlobalLoadingIndicator.vue';
 import { useAnimationStore } from '@/stores/useAnimationStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { storeToRefs } from 'pinia';
 
 const animationStore = useAnimationStore();
+const authStore = useAuthStore();
 const { isAnimating, imageUrl, startRect } = storeToRefs(animationStore);
 const flyerStyle = ref({});
+
+onMounted(() => {
+  authStore.hydrate();
+});
 
 watch(isAnimating, (newValue) => {
   if (newValue && startRect.value) {

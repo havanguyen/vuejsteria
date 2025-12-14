@@ -30,11 +30,9 @@ export const logoutApi = async (token) => {
   }
 };
 
-export const refreshTokenApi = async (refreshToken) => {
+export const refreshTokenApi = async () => {
   try {
-    const response = await axiosInstance.post('/identity/auth/refresh', {
-      token: refreshToken
-    });
+    const response = await axiosInstance.post('/identity/auth/refresh');
     return response.data.result;
   } catch (error) {
     throw error.response?.data || error;
