@@ -40,3 +40,14 @@ export const refreshTokenApi = async (refreshToken) => {
     throw error.response?.data || error;
   }
 };
+
+export const outboundAuthenticate = async (code) => {
+  try {
+    const response = await axiosInstance.post(
+      `/identity/auth/outbound/authentication?code=${code}`
+    );
+    return response.data.result;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};

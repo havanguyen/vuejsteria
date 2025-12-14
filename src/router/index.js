@@ -140,6 +140,12 @@ const routes = [
     meta: { requiresGuest: true, title: 'Register' }
   },
   {
+    path: '/authenticate',
+    name: 'Authenticate',
+    component: () => import('@/views/auth/Authenticate.vue'),
+    meta: { requiresGuest: true, title: 'Authenticating' }
+  },
+  {
     path: '/privacy-policy',
     name: 'PrivacyPolicy',
     component: () => import('@/views/PrivacyPolicyPage.vue'),
@@ -167,6 +173,11 @@ const router = createRouter({
 let isHydrated = false;
 
 router.beforeEach(async (to, from, next) => {
+  if (to.path === '/' && to.query.code) {
+    next({ name: 'Authenticate', query: to.query });
+    return;
+  }
+
   document.title = to.meta.title
     ? `${to.meta.title} - Bookteria`
     : 'Bookteria';
