@@ -4,6 +4,7 @@ import {
   loginApi,
   logoutApi,
   registerApi,
+  refreshTokenApi,
   outboundAuthenticate
 } from '@/api/authApi';
 import { getMyInfoApi } from '@/api/userApi';
@@ -115,6 +116,16 @@ export const useAuthStore = defineStore(
       }
     }
 
+    async function handleRefreshToken() {
+      try {
+        const result = await refreshTokenApi();
+        return result?.token;
+      } catch (error) {
+        console.error('Refresh token failed:', error);
+        throw error;
+      }
+    }
+
     return {
       user,
       isProfileLoading,
@@ -126,8 +137,10 @@ export const useAuthStore = defineStore(
       fetchMyInfo,
       loginWithGoogle,
       googleCallback,
+      handleRefreshToken,
       hydrate
     };
+
   },
   {
     persist: {
