@@ -126,11 +126,10 @@ export default {
           originalRequest._retry = true;
           isRefreshing = true;
 
-          if (!authStore.refreshToken) {
-            isRefreshing = false;
-            authStore.logout();
-            return Promise.reject(error);
-          }
+          /* 
+             Legacy check for token in store removed. 
+             We rely on HttpOnly cookies now, so we always attempt refresh if 401 occurs.
+          */
 
           try {
             const newAccessToken = await authStore.handleRefreshToken();
@@ -139,9 +138,20 @@ export default {
             return axiosInstance(originalRequest);
           } catch (_error) {
             processQueue(_error, null);
-            const apiError =
-              _error.response?.data?.message || 'Phiên đăng nhập hết hạn';
-            notificationStore.showWarning(apiError, 'Hết phiên làm việc');
+
+            // Only show warning if user was actually logged in (and thus lost session)
+            // Guest users probing my-info should not see this.
+            if (authStore.isAuthenticated) {
+              const apiError =
+                _error.response?.data?.message || 'Phiên đăng nhập hết hạn';
+              notificationStore.showWarning(apiError, 'Hết phiên làm việc');
+            }
+
+            // Log out to clear any stale state provided we are not already clean
+            if (authStore.isAuthenticated) {
+              authStore.logout();
+            }
+
             return Promise.reject(_error);
           } finally {
             isRefreshing = false;
