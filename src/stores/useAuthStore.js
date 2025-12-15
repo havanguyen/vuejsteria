@@ -23,11 +23,16 @@ export const useAuthStore = defineStore(
 
     const userRoles = computed(() => {
       if (!user.value?.roles) return [];
+
+      let roles = [];
       // Handle both string[] and Object[] roles depending on API response
       if (typeof user.value.roles[0] === 'string') {
-        return user.value.roles;
+        roles = user.value.roles;
+      } else {
+        roles = user.value.roles.map((r) => r.name);
       }
-      return user.value.roles.map((r) => r.name);
+
+      return roles.map(role => role.replace('ROLE_', ''));
     });
 
     const isAdmin = computed(() => userRoles.value.includes('ADMIN'));

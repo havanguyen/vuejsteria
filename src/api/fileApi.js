@@ -13,7 +13,6 @@ const createApiClient = () => {
   return axios.create({
     baseURL: API_BASE_URL,
     headers: {
-      'Content-Type': 'multipart/form-data',
       Authorization: `Bearer ${token}`
     }
   });
