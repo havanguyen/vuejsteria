@@ -19,7 +19,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://api.bookteria.click',
+        target: 'http://localhost:9000',
         changeOrigin: true,
         secure: false,
       },
