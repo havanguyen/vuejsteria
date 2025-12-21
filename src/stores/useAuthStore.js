@@ -73,6 +73,7 @@ export const useAuthStore = defineStore(
       isProfileLoading.value = true;
       try {
         const userInfo = await getMyInfoApi(config);
+        console.log("Fetched User Info:", userInfo);
         user.value = userInfo;
       } catch (error) {
         // If 401, the axios interceptor might have tried to refresh and failed.
@@ -89,6 +90,10 @@ export const useAuthStore = defineStore(
       } finally {
         isProfileLoading.value = false;
       }
+    }
+
+    function setUser(userData) {
+      user.value = userData;
     }
 
     function loginWithGoogle() {
@@ -140,6 +145,7 @@ export const useAuthStore = defineStore(
       register,
       logout,
       fetchMyInfo,
+      setUser,
       loginWithGoogle,
       googleCallback,
       handleRefreshToken,

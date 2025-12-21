@@ -37,22 +37,22 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import ManagementPage from './shared/ManagementPage.vue';
-import { useForm, useField } from 'vee-validate';
-import { toTypedSchema } from '@vee-validate/zod';
-import * as z from 'zod';
+import { ref } from "vue";
+import ManagementPage from "./shared/ManagementPage.vue";
+import { useForm, useField } from "vee-validate";
+import { toTypedSchema } from "@vee-validate/zod";
+import * as z from "zod";
 import {
   getPublishersApi,
   createPublisherApi,
   updatePublisherApi,
   deletePublisherApi,
-} from '@/api/productApi';
+} from "@/api/productApi";
 
 const headers = [
-  { title: 'ID', key: 'id', sortable: true, width: '300px' },
-  { title: 'Publisher Name', key: 'name', sortable: true },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
+  { title: "ID", key: "id", sortable: true, width: "300px" },
+  { title: "Publisher Name", key: "name", sortable: true },
+  { title: "Actions", key: "actions", sortable: false, align: "end" },
 ];
 
 const api = {
@@ -64,13 +64,13 @@ const api = {
 
 const defaultItem = ref({
   id: null,
-  name: '',
+  name: "",
 });
 
 const formError = ref(null);
 
 const publisherSchema = z.object({
-  name: z.string().min(1, 'Publisher name is required'),
+  name: z.string().min(1, "Publisher name is required"),
 });
 
 const { errors, setValues, resetForm, validate, values } = useForm({
@@ -78,7 +78,7 @@ const { errors, setValues, resetForm, validate, values } = useForm({
   initialValues: defaultItem.value,
 });
 
-const { value: name } = useField('name');
+const { value: name } = useField("name");
 
 const handleOpenDialog = (item) => {
   if (item && item.id) {
@@ -106,7 +106,7 @@ const onSave = async (editedItem, showError) => {
     resetForm();
     return true;
   } catch (err) {
-    formError.value = err.message || 'An unknown error occurred while saving.';
+    formError.value = err.message || "An unknown error occurred while saving.";
     return false;
   }
 };

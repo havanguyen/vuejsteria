@@ -34,9 +34,14 @@
       </template>
 
       <template #item.title="{ item }">
-        <div class="font-weight-bold text-body-1 text-primary">{{ item.title }}</div>
-        <div class="text-caption text-medium-emphasis text-truncate" style="max-width: 200px;">
-          {{ item.description || 'No description' }}
+        <div class="font-weight-bold text-body-1 text-primary">
+          {{ item.title }}
+        </div>
+        <div
+          class="text-caption text-medium-emphasis text-truncate"
+          style="max-width: 200px"
+        >
+          {{ item.description || "No description" }}
         </div>
       </template>
 
@@ -51,13 +56,18 @@
       </template>
 
       <template #item.author="{ item }">
-        <v-chip size="small" variant="tonal" color="info" class="font-weight-medium">
-          {{ item.author?.name || 'N/A' }}
+        <v-chip
+          size="small"
+          variant="tonal"
+          color="info"
+          class="font-weight-medium"
+        >
+          {{ item.author?.name || "N/A" }}
         </v-chip>
       </template>
 
       <template #item.publisher="{ item }">
-        <div class="text-body-2">{{ item.publisher?.name || 'N/A' }}</div>
+        <div class="text-body-2">{{ item.publisher?.name || "N/A" }}</div>
       </template>
 
       <template #form="{ isSubmitting }">
@@ -75,7 +85,10 @@
 
           <v-row>
             <v-col cols="12" md="4">
-              <v-card class="glass-card pa-4 fill-height d-flex flex-column align-center justify-center" elevation="0">
+              <v-card
+                class="glass-card pa-4 fill-height d-flex flex-column align-center justify-center"
+                elevation="0"
+              >
                 <ImageUploader
                   label="Book Cover"
                   v-model="imageUrl"
@@ -87,11 +100,13 @@
                 </div>
               </v-card>
             </v-col>
-            
+
             <v-col cols="12" md="8">
               <v-card class="glass-card pa-6 fill-height" elevation="0">
-                <h3 class="text-h6 font-weight-bold mb-4 text-primary">Basic Information</h3>
-                
+                <h3 class="text-h6 font-weight-bold mb-4 text-primary">
+                  Basic Information
+                </h3>
+
                 <v-text-field
                   v-model="title"
                   :error-messages="errors.title"
@@ -127,7 +142,7 @@
                     ></v-text-field>
                   </v-col>
                 </v-row>
-                
+
                 <v-textarea
                   v-model="description"
                   :error-messages="errors.description"
@@ -145,8 +160,10 @@
           <v-row class="mt-2">
             <v-col cols="12">
               <v-card class="glass-card pa-6" elevation="0">
-                <h3 class="text-h6 font-weight-bold mb-4 text-primary">Details & Pricing</h3>
-                
+                <h3 class="text-h6 font-weight-bold mb-4 text-primary">
+                  Details & Pricing
+                </h3>
+
                 <v-row>
                   <v-col cols="12" sm="6" md="4">
                     <v-autocomplete
@@ -190,7 +207,7 @@
                       class="glass-input"
                     ></v-text-field>
                   </v-col>
-                  
+
                   <v-col cols="12" sm="6" md="4">
                     <v-text-field
                       v-model.number="basePrice"
@@ -231,7 +248,7 @@
                     ></v-text-field>
                   </v-col>
                 </v-row>
-                
+
                 <v-autocomplete
                   v-model="categoryIds"
                   :items="categoryList"
@@ -254,10 +271,14 @@
           <v-row class="mt-2">
             <v-col cols="12">
               <v-card class="glass-card pa-6" elevation="0">
-                <h3 class="text-h6 font-weight-bold mb-4 text-primary">Sale Schedule</h3>
+                <h3 class="text-h6 font-weight-bold mb-4 text-primary">
+                  Sale Schedule
+                </h3>
                 <v-row>
                   <v-col cols="12" md="6">
-                    <div class="text-subtitle-2 font-weight-bold mb-2">Start Time</div>
+                    <div class="text-subtitle-2 font-weight-bold mb-2">
+                      Start Time
+                    </div>
                     <v-row dense>
                       <v-col cols="7">
                         <v-menu
@@ -308,9 +329,11 @@
                       </v-col>
                     </v-row>
                   </v-col>
-                  
+
                   <v-col cols="12" md="6">
-                    <div class="text-subtitle-2 font-weight-bold mb-2">End Time</div>
+                    <div class="text-subtitle-2 font-weight-bold mb-2">
+                      End Time
+                    </div>
                     <v-row dense>
                       <v-col cols="7">
                         <v-menu
@@ -370,7 +393,9 @@
             <v-col cols="12">
               <v-card class="glass-card pa-6" elevation="0">
                 <div class="d-flex align-center justify-space-between mb-4">
-                  <h3 class="text-h6 font-weight-bold text-primary">Additional Attributes</h3>
+                  <h3 class="text-h6 font-weight-bold text-primary">
+                    Additional Attributes
+                  </h3>
                   <v-btn
                     prepend-icon="mdi-plus"
                     size="small"
@@ -388,25 +413,41 @@
                   variant="outlined"
                   class="pa-0 border-dashed"
                   v-if="attributesArray.length > 0"
-                  style="border-color: rgba(0,0,0,0.1);"
+                  style="border-color: rgba(0, 0, 0, 0.1)"
                 >
-                  <v-list class="bg-transparent" lines="one" density="comfortable">
-                    <template v-for="(attr, index) in attributesArray" :key="attr.key">
+                  <v-list
+                    class="bg-transparent"
+                    lines="one"
+                    density="comfortable"
+                  >
+                    <template
+                      v-for="(attr, index) in attributesArray"
+                      :key="attr.key"
+                    >
                       <v-list-item
                         @click.stop="openAttributeDialog(attr, index)"
                         class="attribute-list-item"
                         rounded="lg"
                       >
                         <template v-slot:prepend>
-                          <v-avatar color="primary" variant="tonal" size="32" class="mr-2">
-                            <span class="text-caption font-weight-bold">{{ index + 1 }}</span>
+                          <v-avatar
+                            color="primary"
+                            variant="tonal"
+                            size="32"
+                            class="mr-2"
+                          >
+                            <span class="text-caption font-weight-bold">{{
+                              index + 1
+                            }}</span>
                           </v-avatar>
                         </template>
-                        
-                        <v-list-item-title class="font-weight-bold text-primary">
+
+                        <v-list-item-title
+                          class="font-weight-bold text-primary"
+                        >
                           {{ attr.key }}
                         </v-list-item-title>
-                        
+
                         <v-list-item-subtitle>
                           {{ attr.value }}
                         </v-list-item-subtitle>
@@ -421,7 +462,9 @@
                               class="action-btn"
                               @click.stop="openAttributeDialog(attr, index)"
                             >
-                              <v-tooltip activator="parent" location="top">Edit</v-tooltip>
+                              <v-tooltip activator="parent" location="top"
+                                >Edit</v-tooltip
+                              >
                             </v-btn>
                             <v-btn
                               icon="mdi-delete"
@@ -431,22 +474,34 @@
                               class="action-btn"
                               @click.stop="deleteAttribute(index)"
                             >
-                              <v-tooltip activator="parent" location="top">Delete</v-tooltip>
+                              <v-tooltip activator="parent" location="top"
+                                >Delete</v-tooltip
+                              >
                             </v-btn>
                           </div>
                         </template>
                       </v-list-item>
-                      <v-divider v-if="index < attributesArray.length - 1" class="mx-4 opacity-20"></v-divider>
+                      <v-divider
+                        v-if="index < attributesArray.length - 1"
+                        class="mx-4 opacity-20"
+                      ></v-divider>
                     </template>
                   </v-list>
                 </v-card>
-                
+
                 <v-sheet
                   v-else
                   class="d-flex flex-column align-center justify-center py-8 bg-surface-variant-lighten rounded-lg border-dashed"
                 >
-                  <v-icon icon="mdi-tag-outline" size="40" color="medium-emphasis" class="mb-2 opacity-50"></v-icon>
-                  <div class="text-body-2 text-medium-emphasis">No custom attributes added yet.</div>
+                  <v-icon
+                    icon="mdi-tag-outline"
+                    size="40"
+                    color="medium-emphasis"
+                    class="mb-2 opacity-50"
+                  ></v-icon>
+                  <div class="text-body-2 text-medium-emphasis">
+                    No custom attributes added yet.
+                  </div>
                 </v-sheet>
               </v-card>
             </v-col>
@@ -455,10 +510,17 @@
       </template>
     </ManagementPage>
 
-    <v-dialog v-model="attributeDialog" max-width="450px" persistent transition="dialog-bottom-transition">
+    <v-dialog
+      v-model="attributeDialog"
+      max-width="450px"
+      persistent
+      transition="dialog-bottom-transition"
+    >
       <v-card class="glass-dialog">
         <v-card-title class="text-h5 font-weight-bold pa-6 pb-4">
-          {{ editedAttributeIndex === -1 ? 'Add New Attribute' : 'Edit Attribute' }}
+          {{
+            editedAttributeIndex === -1 ? "Add New Attribute" : "Edit Attribute"
+          }}
         </v-card-title>
         <v-divider class="opacity-20"></v-divider>
         <v-card-text class="pa-6">
@@ -510,13 +572,13 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
-import ManagementPage from './shared/ManagementPage.vue';
-import ImageUploader from './shared/ImageUploader.vue';
-import { useForm, useField } from 'vee-validate';
-import { toTypedSchema } from '@vee-validate/zod';
-import * as z from 'zod';
-import { format, parseISO, isValid as isDateValid } from 'date-fns';
+import { ref, watch } from "vue";
+import ManagementPage from "./shared/ManagementPage.vue";
+import ImageUploader from "./shared/ImageUploader.vue";
+import { useForm, useField } from "vee-validate";
+import { toTypedSchema } from "@vee-validate/zod";
+import * as z from "zod";
+import { format, parseISO, isValid as isDateValid } from "date-fns";
 import {
   getProductsApi,
   createProductApi,
@@ -524,18 +586,18 @@ import {
   deleteProductApi,
   getAuthorsApi,
   getPublishersApi,
-  getCategoriesApi
-} from '@/api/productApi';
-import { getInventoryApi, setInventoryApi } from '@/api/inventoryApi';
-import { searchProductsApi } from '@/api/searchApi';
+  getCategoriesApi,
+} from "@/api/productApi";
+import { getInventoryApi, setInventoryApi } from "@/api/inventoryApi";
+import { searchProductsApi } from "@/api/searchApi";
 
 const headers = [
-  { title: 'Cover', key: 'imageUrl', sortable: false, width: '80px' },
-  { title: 'Title', key: 'title', sortable: true },
-  { title: 'Author', key: 'author', sortable: true },
-  { title: 'Publisher', key: 'publisher', sortable: true },
-  { title: 'Price', key: 'basePrice', sortable: true },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
+  { title: "Cover", key: "imageUrl", sortable: false, width: "80px" },
+  { title: "Title", key: "title", sortable: true },
+  { title: "Author", key: "author", sortable: true },
+  { title: "Publisher", key: "publisher", sortable: true },
+  { title: "Price", key: "basePrice", sortable: true },
+  { title: "Actions", key: "actions", sortable: false, align: "end" },
 ];
 
 const api = {
@@ -543,26 +605,26 @@ const api = {
   search: searchProductsApi,
   create: createProductApi,
   update: updateProductApi,
-  delete: deleteProductApi
+  delete: deleteProductApi,
 };
 
 const defaultItem = ref({
   id: null,
-  title: '',
-  slug: '',
-  isbn: '',
-  description: '',
-  imageUrl: '',
+  title: "",
+  slug: "",
+  isbn: "",
+  description: "",
+  imageUrl: "",
   authorId: null,
   publisherId: null,
-  publicationDate: '',
+  publicationDate: "",
   pageCount: 0,
   basePrice: 0,
   salePrice: null,
-  saleStartDate: '',
-  saleEndDate: '',
+  saleStartDate: "",
+  saleEndDate: "",
   categoryIds: [],
-  stock: 0
+  stock: 0,
 });
 
 const formError = ref(null);
@@ -573,13 +635,13 @@ const loadingDependencies = ref(false);
 
 const attributesArray = ref([]);
 const attributeDialog = ref(false);
-const newAttribute = ref({ key: '', value: '' });
+const newAttribute = ref({ key: "", value: "" });
 const editedAttributeIndex = ref(-1);
 
-const saleStartDateOnly = ref('');
-const saleStartTimeOnly = ref('');
-const saleEndDateOnly = ref('');
-const saleEndTimeOnly = ref('');
+const saleStartDateOnly = ref("");
+const saleStartTimeOnly = ref("");
+const saleEndDateOnly = ref("");
+const saleEndTimeOnly = ref("");
 
 const saleStartMenu = ref(false);
 const saleEndMenu = ref(false);
@@ -587,26 +649,26 @@ const saleStartPicker = ref(null);
 const saleEndPicker = ref(null);
 
 const formatPrice = (value) => {
-  if (!value) return '0 ₫';
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND'
+  if (!value) return "0 ₫";
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
   }).format(value);
 };
 
 const slugify = (text) => {
-  if (!text) return '';
+  if (!text) return "";
   return text
     .toString()
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w\s-]/g, '')
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, "")
     .trim()
-    .replace(/\s+/g, '-');
+    .replace(/\s+/g, "-");
 };
 
-const openAttributeDialog = (attr = { key: '', value: '' }, index = -1) => {
+const openAttributeDialog = (attr = { key: "", value: "" }, index = -1) => {
   newAttribute.value = JSON.parse(JSON.stringify(attr));
   editedAttributeIndex.value = index;
   attributeDialog.value = true;
@@ -614,7 +676,7 @@ const openAttributeDialog = (attr = { key: '', value: '' }, index = -1) => {
 
 const closeAttributeDialog = () => {
   attributeDialog.value = false;
-  newAttribute.value = { key: '', value: '' };
+  newAttribute.value = { key: "", value: "" };
   editedAttributeIndex.value = -1;
 };
 
@@ -635,7 +697,7 @@ const saveAttribute = () => {
     }
     attributesArray.value.push({
       key: normalizedKey,
-      value: newAttribute.value.value
+      value: newAttribute.value.value,
     });
   }
   formError.value = null;
@@ -647,30 +709,35 @@ const deleteAttribute = (index) => {
 };
 
 const productSchema = z.object({
-  title: z.string().min(1, 'Book title is required'),
+  title: z.string().min(1, "Book title is required"),
   slug: z.string().optional(),
-  isbn: z.string().optional().nullable().or(z.literal('')),
-  description: z.string().optional().nullable().or(z.literal('')),
+  isbn: z.string().optional().nullable().or(z.literal("")),
+  description: z.string().optional().nullable().or(z.literal("")),
   imageUrl: z
     .string()
-    .url('Invalid image URL')
+    .url("Invalid image URL")
     .optional()
     .nullable()
-    .or(z.literal('')),
-  authorId: z.string().min(1, 'Author is required'),
-  publisherId: z.string().min(1, 'Publisher is required'),
+    .or(z.literal("")),
+  authorId: z.string().min(1, "Author is required"),
+  publisherId: z.string().min(1, "Publisher is required"),
   publicationDate: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be in YYYY-MM-DD format')
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Must be in YYYY-MM-DD format")
     .optional()
     .nullable()
-    .or(z.literal('')),
-  pageCount: z.number().int().min(0, 'Pages must be >= 0').optional().nullable(),
-  basePrice: z.number().min(0, 'Price must be >= 0'),
+    .or(z.literal("")),
+  pageCount: z
+    .number()
+    .int()
+    .min(0, "Pages must be >= 0")
+    .optional()
+    .nullable(),
+  basePrice: z.number().min(0, "Price must be >= 0"),
 
   salePrice: z
     .number()
-    .min(0, 'Sale Price must be >= 0')
+    .min(0, "Sale Price must be >= 0")
     .optional()
     .nullable()
     .or(z.literal(0)),
@@ -678,46 +745,46 @@ const productSchema = z.object({
     .string()
     .regex(
       /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/,
-      'Date & Time must be in YYYY-MM-DDTHH:MM format or empty'
+      "Date & Time must be in YYYY-MM-DDTHH:MM format or empty"
     )
     .optional()
     .nullable()
-    .or(z.literal('')),
+    .or(z.literal("")),
   saleEndDate: z
     .string()
     .regex(
       /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/,
-      'Date & Time must be in YYYY-MM-DDTHH:MM format or empty'
+      "Date & Time must be in YYYY-MM-DDTHH:MM format or empty"
     )
     .optional()
     .nullable()
-    .or(z.literal('')),
+    .or(z.literal("")),
 
   categoryIds: z.array(z.string()).optional(),
-  stock: z.number().int().min(0, 'Stock must be >= 0').optional().nullable()
+  stock: z.number().int().min(0, "Stock must be >= 0").optional().nullable(),
 });
 
 const { errors, setValues, resetForm, validate, values, setFieldValue } =
   useForm({
     validationSchema: toTypedSchema(productSchema),
-    initialValues: defaultItem.value
+    initialValues: defaultItem.value,
   });
 
-const { value: title } = useField('title');
-const { value: slug } = useField('slug');
-const { value: isbn } = useField('isbn');
-const { value: description } = useField('description');
-const { value: imageUrl } = useField('imageUrl');
-const { value: authorId } = useField('authorId');
-const { value: publisherId } = useField('publisherId');
-const { value: publicationDate } = useField('publicationDate');
-const { value: pageCount } = useField('pageCount');
-const { value: basePrice } = useField('basePrice');
-const { value: salePrice } = useField('salePrice');
-const { value: saleStartDate } = useField('saleStartDate');
-const { value: saleEndDate } = useField('saleEndDate');
-const { value: categoryIds } = useField('categoryIds');
-const { value: stock } = useField('stock');
+const { value: title } = useField("title");
+const { value: slug } = useField("slug");
+const { value: isbn } = useField("isbn");
+const { value: description } = useField("description");
+const { value: imageUrl } = useField("imageUrl");
+const { value: authorId } = useField("authorId");
+const { value: publisherId } = useField("publisherId");
+const { value: publicationDate } = useField("publicationDate");
+const { value: pageCount } = useField("pageCount");
+const { value: basePrice } = useField("basePrice");
+const { value: salePrice } = useField("salePrice");
+const { value: saleStartDate } = useField("saleStartDate");
+const { value: saleEndDate } = useField("saleEndDate");
+const { value: categoryIds } = useField("categoryIds");
+const { value: stock } = useField("stock");
 
 watch(title, (newTitle) => {
   if (!values.id) {
@@ -726,12 +793,12 @@ watch(title, (newTitle) => {
 });
 
 const updateSaleStartDate = (newDate) => {
-  saleStartDateOnly.value = newDate ? format(newDate, 'yyyy-MM-dd') : '';
+  saleStartDateOnly.value = newDate ? format(newDate, "yyyy-MM-dd") : "";
   saleStartMenu.value = false;
 };
 
 const updateSaleEndDate = (newDate) => {
-  saleEndDateOnly.value = newDate ? format(newDate, 'yyyy-MM-dd') : '';
+  saleEndDateOnly.value = newDate ? format(newDate, "yyyy-MM-dd") : "";
   saleEndMenu.value = false;
 };
 
@@ -745,14 +812,14 @@ const handleOpenDialog = async (item) => {
       attributesArray.value.push({ key: key, value: attributesObj[key] });
     }
 
-    const salesStart = item.saleStartDate?.substring(0, 16).split('T') || [
-      '',
-      ''
+    const salesStart = item.saleStartDate?.substring(0, 16).split("T") || [
+      "",
+      "",
     ];
     saleStartDateOnly.value = salesStart[0];
     saleStartTimeOnly.value = salesStart[1];
 
-    const salesEnd = item.saleEndDate?.substring(0, 16).split('T') || ['', ''];
+    const salesEnd = item.saleEndDate?.substring(0, 16).split("T") || ["", ""];
     saleEndDateOnly.value = salesEnd[0];
     saleEndTimeOnly.value = salesEnd[1];
 
@@ -776,16 +843,16 @@ const handleOpenDialog = async (item) => {
       publisherId: item.publisher?.id,
       categoryIds: item.categories?.map((c) => c.id) || [],
       publicationDate: item.publicationDate
-        ? item.publicationDate.split('T')[0]
-        : '',
+        ? item.publicationDate.split("T")[0]
+        : "",
       slug: item.slug || slugify(item.title),
       salePrice: item.salePrice || 0,
 
       saleStartDate: item.saleStartDate
         ? item.saleStartDate.substring(0, 16)
-        : '',
-      saleEndDate: item.saleEndDate ? item.saleEndDate.substring(0, 16) : '',
-      stock: 0
+        : "",
+      saleEndDate: item.saleEndDate ? item.saleEndDate.substring(0, 16) : "",
+      stock: 0,
     };
     delete itemToSet.attributes;
 
@@ -793,15 +860,15 @@ const handleOpenDialog = async (item) => {
 
     try {
       const inventoryData = await getInventoryApi(item.id);
-      setFieldValue('stock', inventoryData.stock);
+      setFieldValue("stock", inventoryData.stock);
     } catch (e) {
-      setFieldValue('stock', 0);
+      setFieldValue("stock", 0);
     }
   } else {
-    saleStartDateOnly.value = '';
-    saleStartTimeOnly.value = '';
-    saleEndDateOnly.value = '';
-    saleEndTimeOnly.value = '';
+    saleStartDateOnly.value = "";
+    saleStartTimeOnly.value = "";
+    saleEndDateOnly.value = "";
+    saleEndTimeOnly.value = "";
     saleStartPicker.value = null;
     saleEndPicker.value = null;
   }
@@ -813,13 +880,13 @@ const onBeforeOpenDialog = async () => {
     const [authorsData, publishersData, categoriesData] = await Promise.all([
       getAuthorsApi(0, 1000),
       getPublishersApi(0, 1000),
-      getCategoriesApi()
+      getCategoriesApi(),
     ]);
     authorList.value = authorsData.content;
     publisherList.value = publishersData.content;
     categoryList.value = categoriesData;
   } catch (error) {
-    console.error('Failed to load dependencies', error);
+    console.error("Failed to load dependencies", error);
   } finally {
     loadingDependencies.value = false;
   }
@@ -829,16 +896,16 @@ const onSave = async (editedItem, showError) => {
   formError.value = null;
 
   setFieldValue(
-    'saleStartDate',
+    "saleStartDate",
     saleStartDateOnly.value && saleStartTimeOnly.value
       ? `${saleStartDateOnly.value}T${saleStartTimeOnly.value}`
-      : saleStartDateOnly.value || ''
+      : saleStartDateOnly.value || ""
   );
   setFieldValue(
-    'saleEndDate',
+    "saleEndDate",
     saleEndDateOnly.value && saleEndTimeOnly.value
       ? `${saleEndDateOnly.value}T${saleEndTimeOnly.value}`
-      : saleEndDateOnly.value || ''
+      : saleEndDateOnly.value || ""
   );
 
   const { valid } = await validate();
@@ -862,7 +929,7 @@ const onSave = async (editedItem, showError) => {
 
   const dateToIso = (dateString) => {
     if (!dateString) return null;
-    if (dateString.includes('T')) {
+    if (dateString.includes("T")) {
       return `${dateString}:00+07:00`;
     }
     const dateMatch = dateString.match(/^(\d{4}-\d{2}-\d{2})$/);
@@ -897,8 +964,8 @@ const onSave = async (editedItem, showError) => {
 
     return true;
   } catch (error) {
-    console.error('Save failed:', error);
-    showError(error.message || 'Failed to save product');
+    console.error("Save failed:", error);
+    showError(error.message || "Failed to save product");
     return false;
   }
 };

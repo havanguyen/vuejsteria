@@ -184,7 +184,7 @@ router.beforeEach(async (to, from, next) => {
 
   const authStore = useAuthStore();
 
-  if (!isHydrated && authStore.token) {
+  if (!isHydrated && authStore.isAuthenticated) {
     try {
       await authStore.hydrate();
     } catch (error) {
@@ -207,7 +207,17 @@ router.beforeEach(async (to, from, next) => {
       });
     } else {
       if (to.meta.roles) {
-        const userRoles = authStore.userRoles || [];
+        const user = authStore.user || {};
+        const rawRoles = user.roles || [];
+
+        let userRoles = [];
+        if (rawRoles.length > 0 && typeof rawRoles[0] === 'string') {
+          userRoles = rawRoles;
+        } else {
+          userRoles = rawRoles.map(r => r.name);
+        }
+        userRoles = userRoles.map(r => r.replace('ROLE_', ''));
+
         const hasAccess = userRoles.some((role) =>
           to.meta.roles.includes(role)
         );
